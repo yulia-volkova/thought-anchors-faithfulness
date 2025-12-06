@@ -1,0 +1,11 @@
+pandas
+numpy
+tqdm
+pyarrow
+datasets
+
+torch
+transformers
+accelerate
+sentencepiece
+safetensors
