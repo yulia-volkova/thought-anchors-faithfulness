@@ -8,8 +8,16 @@ from typing import Dict
 
 from tqdm import tqdm
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+# Try vLLM first, fall back to HuggingFace
+try:
+    from vllm import LLM, SamplingParams
+    USE_VLLM = True
+    print("[vllm] vLLM available - using fast inference")
+except ImportError:
+    USE_VLLM = False
+    print("[hf] vLLM not available - using HuggingFace (slower)")
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 DEFAULT_MODEL = os.getenv(
@@ -22,10 +30,64 @@ _TOKENIZER = None
 _DEVICE = None
 
 
-def _load_model(model_name: str):
-    """
-    Lazily load a Hugging Face CausalLM + tokenizer once and reuse.
-    """
+# ---------------------------------------------------------------------
+# vLLM backend
+# ---------------------------------------------------------------------
+
+def _load_vllm_model(model_name: str):
+    global _MODEL
+    if _MODEL is not None:
+        return _MODEL
+    
+    print(f"[vllm] Loading model '{model_name}'...")
+    _MODEL = LLM(
+        model=model_name,
+        dtype="float16",
+        trust_remote_code=True,
+        gpu_memory_utilization=0.5,  # Use less GPU memory
+        max_model_len=2048,  # Limit context length to save memory
+    )
+    print(f"[vllm] Model loaded")
+    return _MODEL
+
+
+def _generate_vllm_batch(
+    prompt: str,
+    num_responses: int,
+    temperature: float,
+    top_p: float,
+    max_tokens: int,
+    model_name: str,
+) -> list:
+    """Generate multiple responses efficiently with vLLM batching."""
+    llm = _load_vllm_model(model_name)
+    
+    sampling_params = SamplingParams(
+        n=num_responses,
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
+    )
+    
+    outputs = llm.generate([prompt], sampling_params)
+    
+    responses = []
+    for output in outputs[0].outputs:
+        responses.append({
+            "text": output.text,
+            "finish_reason": output.finish_reason,
+            "usage": {},
+        })
+    
+    return responses
+
+
+# ---------------------------------------------------------------------
+# HuggingFace backend (fallback)
+# ---------------------------------------------------------------------
+
+def _load_hf_model(model_name: str):
+    """Lazily load a Hugging Face CausalLM + tokenizer once and reuse."""
     global _MODEL, _TOKENIZER, _DEVICE
 
     if _MODEL is not None and _TOKENIZER is not None:
@@ -41,26 +103,25 @@ def _load_model(model_name: str):
     _MODEL = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float16 if _DEVICE == "cuda" else torch.float32,
-    ).to(_DEVICE)
+        device_map="auto" if _DEVICE == "cuda" else None,
+    )
     _MODEL.eval()
 
     print(f"[hf] Model loaded on '{_DEVICE}'")
     return _MODEL, _TOKENIZER, _DEVICE
 
 
-def _generate_sync(
+def _generate_hf_sync(
     prompt: str,
     temperature: float,
     top_p: float,
     max_tokens: int,
     model_name: str,
 ) -> Dict:
-    """
-    Synchronous generation with transformers.
-    """
-    model, tokenizer, device = _load_model(model_name)
+    """Synchronous generation with transformers."""
+    model, tokenizer, device = _load_hf_model(model_name)
 
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     input_len = inputs["input_ids"].shape[1]
 
     with torch.no_grad():
@@ -83,7 +144,7 @@ def _generate_sync(
     }
 
 
-async def _generate_one(
+async def _generate_hf_one(
     prompt: str,
     temperature: float,
     top_p: float,
@@ -92,16 +153,14 @@ async def _generate_one(
     max_retries: int = 3,
     verbose: bool = False,
 ) -> Dict:
-    """
-    Async wrapper around _generate_sync with a simple retry loop.
-    """
+    """Async wrapper around _generate_hf_sync with a simple retry loop."""
     last_err = None
     for attempt in range(max_retries):
         try:
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 None,
-                _generate_sync,
+                _generate_hf_sync,
                 prompt,
                 temperature,
                 top_p,
@@ -122,7 +181,7 @@ async def _generate_one(
 
 
 # ---------------------------------------------------------------------
-# Multiple responses + caching
+# Multiple responses + caching (unified interface)
 # ---------------------------------------------------------------------
 
 async def generate_multiple_responses(
@@ -131,7 +190,7 @@ async def generate_multiple_responses(
     temperature: float = 0.6,
     top_p: float = 0.95,
     max_tokens: int = 4096,
-    provider: str = "local",          # kept for compatibility; ignored
+    provider: str = "local",
     model: str = DEFAULT_MODEL,
     max_retries: int = 6,
     verbose: bool = False,
@@ -139,24 +198,12 @@ async def generate_multiple_responses(
     req_exist: bool = False,
 ) -> Dict:
     """
-    Generate multiple responses for a given prompt using a HF model.
-
-    Returns:
-        {
-          "prompt": ...,
-          "num_responses": ...,
-          "temperature": ...,
-          "top_p": ...,
-          "max_tokens": ...,
-          "provider": "local",
-          "model": ...,
-          "responses": [ { "text": ..., "finish_reason": ..., "usage": ...}, ... ]
-        }
+    Generate multiple responses for a given prompt.
+    Uses vLLM if available (fast), otherwise falls back to HuggingFace.
     """
-    # Shorten model name for cache dir
+    # Cache path
     model_str = model.replace("/", "_")
     prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[::2]
-
     nr_str = f"_nr{num_responses}"
 
     fp_out = (
@@ -184,38 +231,41 @@ async def generate_multiple_responses(
             print(f"{fp_out} does not exist. Generating responses...")
 
     if req_exist:
-        # Caller only wanted to know if cache exists
         return None
 
     if verbose:
         print(f"Generating {num_responses} responses with model '{model}'...")
 
-    tasks = [
-        _generate_one(
-            prompt,
-            temperature,
-            top_p,
-            max_tokens,
-            model,
-            max_retries=max_retries,
-            verbose=verbose,
-        )
-        for _ in range(num_responses)
-    ]
-
     t_start = time.time()
-    responses = []
 
-    if verbose:
-        for task in tqdm(
-            asyncio.as_completed(tasks),
-            total=num_responses,
-            desc="Generating responses",
-        ):
-            responses.append(await task)
+    # Use vLLM or HuggingFace
+    if USE_VLLM:
+        responses = _generate_vllm_batch(
+            prompt, num_responses, temperature, top_p, max_tokens, model
+        )
     else:
-        for task in asyncio.as_completed(tasks):
-            responses.append(await task)
+        # HuggingFace fallback - pre-load model
+        _load_hf_model(model)
+        
+        tasks = [
+            _generate_hf_one(
+                prompt, temperature, top_p, max_tokens, model,
+                max_retries=max_retries, verbose=verbose,
+            )
+            for _ in range(num_responses)
+        ]
+
+        responses = []
+        if verbose:
+            for task in tqdm(
+                asyncio.as_completed(tasks),
+                total=num_responses,
+                desc="Generating responses",
+            ):
+                responses.append(await task)
+        else:
+            for task in asyncio.as_completed(tasks):
+                responses.append(await task)
 
     d = {
         "prompt": prompt,
@@ -223,7 +273,7 @@ async def generate_multiple_responses(
         "temperature": temperature,
         "top_p": top_p,
         "max_tokens": max_tokens,
-        "provider": "local",
+        "provider": "vllm" if USE_VLLM else "local",
         "model": model,
         "responses": responses,
     }
@@ -244,15 +294,13 @@ async def call_generate(
     temperature: float,
     top_p: float,
     max_tokens: int = 4096,
-    provider: str = "local",          # kept for compatibility; ignored
+    provider: str = "local",
     model: str = DEFAULT_MODEL,
     max_retries: int = 6,
     verbose: bool = True,
     req_exist: bool = False,
 ) -> Dict:
-    """
-    Thin wrapper to keep the same API as before.
-    """
+    """Thin wrapper to keep the same API as before."""
     return await generate_multiple_responses(
         prompt=prompt,
         num_responses=num_responses,

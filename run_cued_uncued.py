@@ -7,10 +7,9 @@ from collections import Counter
 
 from tqdm import tqdm
 
-from generate_chunk_rollouts import call_generate  # local DeepSeek wrapper
+from generate_rollouts import call_generate  # local DeepSeek wrapper
 from token_utils import get_raw_tokens
 from pkld import pkld
-import matplotlib.pyplot as plt
 
 # Optional: Hugging Face datasets (install with: pip install datasets)
 try:
@@ -71,7 +70,7 @@ def call_generate_process(
     model: str = "deepseek-ai/deepseek-r1-distill-qwen-14b",
     max_retries: int = 200,
     verbose: bool = False,
-    req_exist: bool = True,
+    req_exist: bool = False,
 ) -> pd.DataFrame:
     """
     Wrapper around call_generate:
@@ -424,8 +423,8 @@ if __name__ == "__main__":
     model = "deepseek-ai/deepseek-r1-distill-qwen-14b"  # or local path
     temperature = 0.7
     top_p = 0.95
-    max_tokens = 4096
-    num_responses = 20  # as you wanted
+    max_tokens = 2048
+    num_responses = 20
 
     # Stanford Professor cues only, ITC failure + success
     df = load_preprocessed_chua_csv(
@@ -456,8 +455,7 @@ if __name__ == "__main__":
     print(" Saved CSVs to rollout_outputs/")
 
     # Optional: save / push as HF dataset
-    # Set hf_repo_id to your repo, e.g. "username/deepseek-professor-chua"
-    hf_repo_id = None  # e.g. "my-username/deepseek-professor-chua"
+    hf_repo_id = "yulia-volkova/mmlu-chua-rollouts" 
     save_as_hf_dataset(
         df_cue,
         df_base,
@@ -465,5 +463,5 @@ if __name__ == "__main__":
         df_base_long,
         dataset_dir="rollout_outputs/deepseek_professor_hf",
         hf_repo_id=hf_repo_id,
-        push_to_hub=False,  # set True if you want to push & have a token configured
+        push_to_hub=True, 
     )

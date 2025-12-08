@@ -9,3 +9,6 @@ transformers
 accelerate
 sentencepiece
 safetensors
+huggingface_hub
+vllm
+pkld
