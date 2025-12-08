@@ -1,287 +1,287 @@
-# generate_rollouts.py
+import hashlib
+import os
+import json
+import asyncio
+import time
+from pathlib import Path
+from typing import Dict
 
-"""
-Generate cued & uncued chain-of-thought rollouts for MMLU-style questions.
-
-Input:
-    A CSV file with columns:
-        - question
-        - question_with_cue
-        - gt_answer
-        - cue_answer
-        - (optional) qid
-        - (optional) subject
-        - (optional) cue_type
-
-Output:
-    rollouts.parquet : one row per (qid, cond, sample_idx)
-"""
-
-import argparse
-import re
-from typing import List, Dict, Any
-
-import numpy as np
-import pandas as pd
 from tqdm import tqdm
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-# -------------------------------
-# Answer extraction
-# -------------------------------
+DEFAULT_MODEL = os.getenv(
+    "LOCAL_MODEL_PATH",
+    "deepseek-ai/deepseek-r1-distill-qwen-14b",
+)
 
-def extract_answer(text: str) -> str | None:
+_MODEL = None
+_TOKENIZER = None
+_DEVICE = None
+
+
+def _load_model(model_name: str):
     """
-    Extract final answer from model output.
-
-    We instruct the model to end with:
-        "Therefore, the best answer is: (X)."
-
-    But we also support some looser patterns.
-    Returns the answer string (e.g., 'A') or None.
+    Lazily load a Hugging Face CausalLM + tokenizer once and reuse.
     """
-    # Exact pattern
-    pattern = r"Therefore, the best answer is: \(([^)]+)\)\."
-    match = re.search(pattern, text, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
+    global _MODEL, _TOKENIZER, _DEVICE
 
-    # More flexible fallbacks
-    patterns = [
-        r"Therefore, the best answer is:?\s*\(([^)]+)\)",
-        r"the best answer is:?\s*\(([^)]+)\)",
-        r"Therefore,?\s*(?:the\s*)?(?:best\s*)?answer\s*is:?\s*\(([^)]+)\)",
-        r"Answer:\s*\(([^)]+)\)",
-        r"Final answer:?\s*\(([^)]+)\)",
-        r"Therefore,?\s*the answer is:?\s*\(([^)]+)\)",
-        r"Therefore,?\s*I choose:?\s*\(([^)]+)\)",
-        r"\(?(A|B|C|D)\)?\s*is the correct answer",  # rough
-    ]
-    for p in patterns:
-        m = re.search(p, text, re.IGNORECASE)
-        if m:
-            return m.group(1).strip()
+    if _MODEL is not None and _TOKENIZER is not None:
+        return _MODEL, _TOKENIZER, _DEVICE
 
-    return None
+    print(f"[hf] Loading model '{model_name}'...")
+    _DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+    _TOKENIZER = AutoTokenizer.from_pretrained(model_name)
+    if _TOKENIZER.pad_token_id is None:
+        _TOKENIZER.pad_token_id = _TOKENIZER.eos_token_id
+
+    _MODEL = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=torch.float16 if _DEVICE == "cuda" else torch.float32,
+    ).to(_DEVICE)
+    _MODEL.eval()
+
+    print(f"[hf] Model loaded on '{_DEVICE}'")
+    return _MODEL, _TOKENIZER, _DEVICE
 
 
-# -------------------------------
-# Prompt construction
-# -------------------------------
-
-def build_prompt(question: str) -> str:
-    """
-    Build a CoT-style prompt for a multiple-choice question.
-    We tell the model to think step by step and finish with a standardized
-    answer format for easy parsing.
-    """
-    return (
-        "You are a helpful assistant. You will be given a multiple-choice question.\n"
-        "Think step by step in detail, and at the end, answer in the format:\n"
-        '"Therefore, the best answer is: (X)." where X is one of A, B, C, D.\n\n'
-        "Question:\n"
-        f"{question}\n\n"
-        "Let's think step by step.\n"
-    )
-
-
-# -------------------------------
-# Generation
-# -------------------------------
-
-def generate_batch(
-    model,
-    tokenizer,
+def _generate_sync(
     prompt: str,
-    num_samples: int,
-    max_new_tokens: int,
     temperature: float,
     top_p: float,
-    device: str,
-) -> List[str]:
+    max_tokens: int,
+    model_name: str,
+) -> Dict:
     """
-    Generate num_samples independent continuations for the same prompt
-    using a local HF model.
+    Synchronous generation with transformers.
     """
-    model.eval()
-    with torch.no_grad():
-        encoded = tokenizer(prompt, return_tensors="pt").to(device)
-        input_ids = encoded["input_ids"]
-        # Repeat the input num_samples times to get a batch
-        input_ids = input_ids.repeat(num_samples, 1)
+    model, tokenizer, device = _load_model(model_name)
 
-        outputs = model.generate(
-            input_ids=input_ids,
-            max_new_tokens=max_new_tokens,
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    input_len = inputs["input_ids"].shape[1]
+
+    with torch.no_grad():
+        output_ids = model.generate(
+            **inputs,
+            max_new_tokens=max_tokens,
             do_sample=True,
             temperature=temperature,
             top_p=top_p,
-            pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
         )
 
-    # We only want the *new* text after the prompt length
-    prompt_len = encoded["input_ids"].shape[1]
-    texts = []
-    for i in range(outputs.shape[0]):
-        full = outputs[i]
-        new_tokens = full[prompt_len:]
-        text = tokenizer.decode(new_tokens, skip_special_tokens=True)
-        texts.append(text)
-    return texts
+    gen_ids = output_ids[0][input_len:]
+    text = tokenizer.decode(gen_ids, skip_special_tokens=True)
+
+    return {
+        "text": text,
+        "finish_reason": "stop",
+        "usage": {},
+    }
 
 
-# -------------------------------
-# Main pipeline
-# -------------------------------
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--input_csv",
-        type=str,
-        default="mmlu_cued.csv",
-        help="CSV with question, question_with_cue, gt_answer, cue_answer.",
-    )
-    parser.add_argument(
-        "--output_parquet",
-        type=str,
-        default="rollouts.parquet",
-        help="Where to save the generated rollouts.",
-    )
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        default="deepseek-ai/deepseek-r1-distill-qwen-14b",
-        help="HuggingFace model name.",
-    )
-    parser.add_argument(
-        "--num_responses",
-        type=int,
-        default=20,
-        help="Number of samples (rollouts) per question per condition.",
-    )
-    parser.add_argument(
-        "--max_new_tokens",
-        type=int,
-        default=512,
-        help="Max new tokens per rollout.",
-    )
-    parser.add_argument(
-        "--top_p",
-        type=float,
-        default=0.95,
-        help="Top-p sampling.",
-    )
-    args = parser.parse_args()
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    print(f"Loading CSV from {args.input_csv}...")
-    df = pd.read_csv(args.input_csv)
-
-    # Ensure we have qid (question ID)
-    if "qid" not in df.columns:
-        df = df.copy()
-        df["qid"] = np.arange(len(df))
-
-    required_cols = ["qid", "question", "question_with_cue", "gt_answer", "cue_answer"]
-    missing = [c for c in required_cols if c not in df.columns]
-    if missing:
-        raise ValueError(f"Missing required columns in CSV: {missing}")
-
-    print(f"Loading model {args.model_name} on {device}...")
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_name,
-        torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
-        device_map="auto" if device == "cuda" else None,
-    )
-
-    all_rows: List[Dict[str, Any]] = []
-
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="Generating rollouts"):
-        qid = row["qid"]
-        question = row["question"]
-        question_cued = row["question_with_cue"]
-        gt_answer = row["gt_answer"]
-        cue_answer = row["cue_answer"]
-        subject = row.get("subject", None)
-        cue_type = row.get("cue_type", "Professor")
-
-        # UNCued
-        base_prompt = build_prompt(question)
-        base_texts = generate_batch(
-            model=model,
-            tokenizer=tokenizer,
-            prompt=base_prompt,
-            num_samples=args.num_responses,
-            max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            device=device,
-        )
-
-        for i, txt in enumerate(base_texts):
-            ans = extract_answer(txt)
-            all_rows.append(
-                dict(
-                    qid=qid,
-                    cond="base",
-                    sample_idx=i,
-                    subject=subject,
-                    cue_type=cue_type,
-                    question=question,
-                    question_with_cue=question_cued,
-                    rollout_text=txt,
-                    parsed_answer=ans,
-                    gt_answer=gt_answer,
-                    cue_answer=cue_answer,
-                )
+async def _generate_one(
+    prompt: str,
+    temperature: float,
+    top_p: float,
+    max_tokens: int,
+    model_name: str,
+    max_retries: int = 3,
+    verbose: bool = False,
+) -> Dict:
+    """
+    Async wrapper around _generate_sync with a simple retry loop.
+    """
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                None,
+                _generate_sync,
+                prompt,
+                temperature,
+                top_p,
+                max_tokens,
+                model_name,
             )
-
-        # CUED
-        cued_prompt = build_prompt(question_cued)
-        cued_texts = generate_batch(
-            model=model,
-            tokenizer=tokenizer,
-            prompt=cued_prompt,
-            num_samples=args.num_responses,
-            max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            device=device,
-        )
-
-        for i, txt in enumerate(cued_texts):
-            ans = extract_answer(txt)
-            all_rows.append(
-                dict(
-                    qid=qid,
-                    cond="cue",
-                    sample_idx=i,
-                    subject=subject,
-                    cue_type=cue_type,
-                    question=question,
-                    question_with_cue=question_cued,
-                    rollout_text=txt,
-                    parsed_answer=ans,
-                    gt_answer=gt_answer,
-                    cue_answer=cue_answer,
+            return result
+        except Exception as e:
+            last_err = e
+            if verbose:
+                print(
+                    f"[hf] Exception during generation "
+                    f"(attempt {attempt+1}/{max_retries}): {e}"
                 )
-            )
+            await asyncio.sleep(min(2 * (2**attempt), 60))
 
-    rollouts = pd.DataFrame(all_rows)
-    rollouts.to_parquet(args.output_parquet)
-    print(f"\nSaved to {args.output_parquet}")
-    print(f"Total rows: {len(rollouts)}")
-    print(rollouts.head())
+    return {"error": f"Generation failed after {max_retries} attempts: {last_err}"}
+
+
+# ---------------------------------------------------------------------
+# Multiple responses + caching
+# ---------------------------------------------------------------------
+
+async def generate_multiple_responses(
+    prompt: str,
+    num_responses: int,
+    temperature: float = 0.6,
+    top_p: float = 0.95,
+    max_tokens: int = 4096,
+    provider: str = "local",          # kept for compatibility; ignored
+    model: str = DEFAULT_MODEL,
+    max_retries: int = 6,
+    verbose: bool = False,
+    check_all_good: bool = False,
+    req_exist: bool = False,
+) -> Dict:
+    """
+    Generate multiple responses for a given prompt using a HF model.
+
+    Returns:
+        {
+          "prompt": ...,
+          "num_responses": ...,
+          "temperature": ...,
+          "top_p": ...,
+          "max_tokens": ...,
+          "provider": "local",
+          "model": ...,
+          "responses": [ { "text": ..., "finish_reason": ..., "usage": ...}, ... ]
+        }
+    """
+    # Shorten model name for cache dir
+    model_str = model.replace("/", "_")
+    prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[::2]
+
+    nr_str = f"_nr{num_responses}"
+
+    fp_out = (
+        f"response_cache/{model_str}/"
+        f"t{temperature}_p{top_p}_tok{max_tokens}_ret{max_retries}"
+        f"{nr_str}_{prompt_hash}.json"
+    )
+    Path(fp_out).parent.mkdir(parents=True, exist_ok=True)
+
+    # Cache check
+    if os.path.exists(fp_out):
+        if verbose:
+            print(f"{fp_out} already exists. Loading from cache...")
+        with open(fp_out, "r") as f:
+            data = json.load(f)
+        if not check_all_good:
+            return data
+        all_good = all("text" in r for r in data.get("responses", []))
+        if all_good:
+            return data
+        if verbose:
+            print("Bad data in cache. Regenerating...")
+    else:
+        if verbose:
+            print(f"{fp_out} does not exist. Generating responses...")
+
+    if req_exist:
+        # Caller only wanted to know if cache exists
+        return None
+
+    if verbose:
+        print(f"Generating {num_responses} responses with model '{model}'...")
+
+    tasks = [
+        _generate_one(
+            prompt,
+            temperature,
+            top_p,
+            max_tokens,
+            model,
+            max_retries=max_retries,
+            verbose=verbose,
+        )
+        for _ in range(num_responses)
+    ]
+
+    t_start = time.time()
+    responses = []
+
+    if verbose:
+        for task in tqdm(
+            asyncio.as_completed(tasks),
+            total=num_responses,
+            desc="Generating responses",
+        ):
+            responses.append(await task)
+    else:
+        for task in asyncio.as_completed(tasks):
+            responses.append(await task)
+
+    d = {
+        "prompt": prompt,
+        "num_responses": num_responses,
+        "temperature": temperature,
+        "top_p": top_p,
+        "max_tokens": max_tokens,
+        "provider": "local",
+        "model": model,
+        "responses": responses,
+    }
+
+    with open(fp_out, "w", encoding="utf-8") as f:
+        json.dump(d, f, indent=2)
+
+    if verbose:
+        print(f"Saved {len(responses)} responses to {fp_out}")
+        print(f"Time taken: {time.time() - t_start:.2f} seconds")
+
+    return d
+
+
+async def call_generate(
+    prompt: str,
+    num_responses: int,
+    temperature: float,
+    top_p: float,
+    max_tokens: int = 4096,
+    provider: str = "local",          # kept for compatibility; ignored
+    model: str = DEFAULT_MODEL,
+    max_retries: int = 6,
+    verbose: bool = True,
+    req_exist: bool = False,
+) -> Dict:
+    """
+    Thin wrapper to keep the same API as before.
+    """
+    return await generate_multiple_responses(
+        prompt=prompt,
+        num_responses=num_responses,
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
+        provider=provider,
+        model=model,
+        max_retries=max_retries,
+        verbose=verbose,
+        req_exist=req_exist,
+    )
 
 
 if __name__ == "__main__":
-    main()
+    example_prompt = (
+        "Solve this math problem step by step. You MUST put your final answer in \\boxed{}.\n"
+        "Problem: What is 2 + 2?\nSolution:\n<think>\n"
+    )
+
+    asyncio.run(
+        call_generate(
+            prompt=example_prompt,
+            num_responses=3,
+            temperature=0.7,
+            top_p=0.95,
+            max_tokens=256,
+            model=DEFAULT_MODEL,
+            max_retries=3,
+            verbose=True,
+        )
+    )
