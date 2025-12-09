@@ -3,6 +3,7 @@ numpy
 tqdm
 pyarrow
 datasets
+pyyaml
 
 torch
 transformers
@@ -12,3 +13,4 @@ safetensors
 huggingface_hub
 vllm
 pkld
+matplotlib

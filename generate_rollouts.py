@@ -30,22 +30,25 @@ _TOKENIZER = None
 _DEVICE = None
 
 
-# ---------------------------------------------------------------------
 # vLLM backend
-# ---------------------------------------------------------------------
-
-def _load_vllm_model(model_name: str):
+# We try to load model through vLLM first for faster generation of rollouts
+def _load_vllm_model(model_name: str, max_tokens: int = 2048):
+    # when I use _MODEL, use the module-level one
+    #  Once _MODEL is loaded, subsequent calls to _load_vllm_model() return the cached model without reloading
     global _MODEL
     if _MODEL is not None:
         return _MODEL
-    
+
     print(f"[vllm] Loading model '{model_name}'...")
+    max_prompt_length = 675  # Estimated prompt length in tokens
+    max_model_len = max_tokens + max_prompt_length
+    print(f"[vllm]   max_model_len={max_model_len} (max_tokens={max_tokens} + prompt_len={max_prompt_length})")
     _MODEL = LLM(
         model=model_name,
         dtype="float16",
         trust_remote_code=True,
         gpu_memory_utilization=0.5,  # Use less GPU memory
-        max_model_len=2048,  # Limit context length to save memory
+        max_model_len=max_model_len,  # Total context window = max_tokens + prompt
     )
     print(f"[vllm] Model loaded")
     return _MODEL
@@ -60,7 +63,7 @@ def _generate_vllm_batch(
     model_name: str,
 ) -> list:
     """Generate multiple responses efficiently with vLLM batching."""
-    llm = _load_vllm_model(model_name)
+    llm = _load_vllm_model(model_name, max_tokens=max_tokens)
     
     sampling_params = SamplingParams(
         n=num_responses,
@@ -118,7 +121,6 @@ def _generate_hf_sync(
     max_tokens: int,
     model_name: str,
 ) -> Dict:
-    """Synchronous generation with transformers."""
     model, tokenizer, device = _load_hf_model(model_name)
 
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
@@ -238,13 +240,11 @@ async def generate_multiple_responses(
 
     t_start = time.time()
 
-    # Use vLLM or HuggingFace
     if USE_VLLM:
         responses = _generate_vllm_batch(
             prompt, num_responses, temperature, top_p, max_tokens, model
         )
     else:
-        # HuggingFace fallback - pre-load model
         _load_hf_model(model)
         
         tasks = [
