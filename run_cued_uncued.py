@@ -18,10 +18,6 @@ except ImportError:
     INSTALLED_DATASETS = False
 
 
-# ---------------------------------------------------------------------
-# Data loading / preprocessing
-# ---------------------------------------------------------------------
-
 def load_chua_csv():
     fp = "Chua_faithfulness_results.csv"
     df = pd.read_csv(fp)
@@ -176,9 +172,7 @@ def add_match_stats(out, gt_answer, cue_answer):
     }
 
 
-# ---------------------------------------------------------------------
 # Long-format construction (per rollout) - has the full CoT that we can later use for faithfulness analysis
-# ---------------------------------------------------------------------
 
 def make_long_rows(row, out, tokens_target, condition: str):
     """
@@ -384,7 +378,7 @@ def save_as_hf_dataset(
     push_to_hub: bool = False,
 ):
     """
-    Save each dataframe as a separate Hugging Face dataset.
+    Save each dataframe as a separate HF dataset.
 
     - Creates 4 separate datasets: cue_summary, base_summary, cue_long, base_long
     - If `push_to_hub=True` and `base_repo_id` is provided and `datasets` is installed,
@@ -420,7 +414,7 @@ def save_as_hf_dataset(
 
 
 if __name__ == "__main__":
-    model = "deepseek-ai/deepseek-r1-distill-qwen-14b"  # or local path
+    model = "deepseek-ai/deepseek-r1-distill-qwen-14b"  
     temperature = 0.7
     top_p = 0.95
     max_tokens = 2048 # original paper: 16384, but we try this first, we add 675 on top in generate_rollouts._load_vllm_model if done through vllm
@@ -446,7 +440,7 @@ if __name__ == "__main__":
         tokens_target=tokens,
     )
 
-    # Save CSVs locally
+    # Save locally
     os.makedirs("rollout_outputs", exist_ok=True)
     df_cue.to_csv("rollout_outputs/df_cue_summary.csv", index=False)
     df_base.to_csv("rollout_outputs/df_base_summary.csv", index=False)
@@ -454,7 +448,7 @@ if __name__ == "__main__":
     df_base_long.to_csv("rollout_outputs/df_base_long.csv", index=False)
     print(" Saved CSVs to rollout_outputs/")
 
-    # Optional: save / push as separate HF datasets
+    # Save to HF  
     base_repo_id = "yulia-volkova/mmlu-chua-rollouts" 
     save_as_hf_dataset(
         df_cue,
