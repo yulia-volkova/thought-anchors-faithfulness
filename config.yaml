@@ -1,0 +1,18 @@
+# Configuration for rollouts generation
+
+model:
+  name: "deepseek-ai/deepseek-r1-distill-qwen-14b"  
+  provider: "local"  
+
+generation:
+  max_tokens: 2048  # Maximum tokens to generate (original paper: 16384)
+  temperature: 0.7
+  top_p: 0.95
+  num_responses: 20  
+  max_retries: 6
+
+# Prompt length estimate (in tokens) - from analysis of stanford professor questions
+# This is used to calculate max_model_len = max_tokens + max_prompt_len
+max_prompt_len: 675
+
+

@@ -380,38 +380,41 @@ def save_as_hf_dataset(
     df_base,
     df_cue_long,
     df_base_long,
-    dataset_dir: str = "rollout_outputs/mmlud_professor_cue_deepseek",
-    hf_repo_id: str | None = None,
+    base_repo_id: str | None = None,
     push_to_hub: bool = False,
 ):
     """
-    Save results as a Hugging Face DatasetDict.
+    Save each dataframe as a separate Hugging Face dataset.
 
-    - Always saves to disk at `dataset_dir`.
-    - If `push_to_hub=True` and `hf_repo_id` is provided and `datasets` is installed,
-      also pushes to the Hub (requires HF token configured).
+    - Creates 4 separate datasets: cue_summary, base_summary, cue_long, base_long
+    - If `push_to_hub=True` and `base_repo_id` is provided and `datasets` is installed,
+      pushes each dataset to the Hub (requires HF token configured).
+    - Each dataset will be pushed to: {base_repo_id}-{suffix}
     """
     if not INSTALLED_DATASETS:
         print("'datasets' package not installed; skipping HF dataset creation.")
         return
 
-    os.makedirs(dataset_dir, exist_ok=True)
+    datasets = {
+        "cue_summary": df_cue,
+        "base_summary": df_base,
+        "cue_long": df_cue_long,
+        "base_long": df_base_long,
+    }
 
-    ds = DatasetDict(
-        {
-            "cue_summary": Dataset.from_pandas(df_cue.reset_index(drop=True)),
-            "base_summary": Dataset.from_pandas(df_base.reset_index(drop=True)),
-            "cue_long": Dataset.from_pandas(df_cue_long.reset_index(drop=True)),
-            "base_long": Dataset.from_pandas(df_base_long.reset_index(drop=True)),
-        }
-    )
-
-    ds.save_to_disk(dataset_dir)
-    print(f" Saved Hugging Face DatasetDict to {dataset_dir}")
-
-    if push_to_hub and hf_repo_id is not None:
-        ds.push_to_hub(hf_repo_id)
-        print(f" Pushed dataset to Hugging Face Hub: {hf_repo_id}")
+    for name, df in datasets.items():
+        dataset = Dataset.from_pandas(df.reset_index(drop=True))
+        
+        if push_to_hub and base_repo_id is not None:
+            repo_id = f"{base_repo_id}-{name}"
+            dataset.push_to_hub(repo_id)
+            print(f" Pushed {name} dataset to Hugging Face Hub: {repo_id}")
+        else:
+            # Save locally if not pushing to hub
+            local_dir = f"rollout_outputs/{name}_hf"
+            os.makedirs(local_dir, exist_ok=True)
+            dataset.save_to_disk(local_dir)
+            print(f" Saved {name} dataset to {local_dir}")
 
 
 
@@ -451,14 +454,13 @@ if __name__ == "__main__":
     df_base_long.to_csv("rollout_outputs/df_base_long.csv", index=False)
     print(" Saved CSVs to rollout_outputs/")
 
-    # Optional: save / push as HF dataset
-    hf_repo_id = "yulia-volkova/mmlu-chua-rollouts" 
+    # Optional: save / push as separate HF datasets
+    base_repo_id = "yulia-volkova/mmlu-chua-rollouts" 
     save_as_hf_dataset(
         df_cue,
         df_base,
         df_cue_long,
         df_base_long,
-        dataset_dir="rollout_outputs/deepseek_professor_hf",
-        hf_repo_id=hf_repo_id,
+        base_repo_id=base_repo_id,
         push_to_hub=True, 
     )
