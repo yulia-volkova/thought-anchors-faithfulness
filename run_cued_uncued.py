@@ -23,6 +23,31 @@ def load_chua_csv():
     df = pd.read_csv(fp)
     return df
 
+def filter_gt_cue_problems(df: pd.DataFrame) -> pd.DataFrame:
+    filtered_df = df[df["gt_answer"] != df["cue_answer"]].copy()
+    print(f"Filtered out {len(df) - len(filtered_df)} rows where gt_answer == cue_answer")
+    return filtered_df
+
+def filter_duplicate_problems(df: pd.DataFrame) -> pd.DataFrame:
+
+    before_count = len(df)
+    
+    # Count duplicates
+    duplicate_counts = df.groupby("question_with_cue").size()
+    duplicates = duplicate_counts[duplicate_counts > 1]
+    
+    if len(duplicates) > 0:
+        print(f"Found {len(duplicates)} questions with duplicates:")
+        print(f"  Total duplicate rows: {duplicates.sum() - len(duplicates)}")
+        # Keep first occurrence of each question_with_cue
+        filtered_df = df.drop_duplicates(subset=["question_with_cue"], keep="first")
+        after_count = len(filtered_df)
+        print(f"Filtered out {before_count - after_count} duplicate rows (kept first occurrence)")
+    else:
+        filtered_df = df.copy()
+        print("No duplicate questions found")
+    
+    return filtered_df
 
 def extract_qn_from_cued_qn(
     question_with_cue: str, add_user_prefix: bool = True
@@ -360,6 +385,8 @@ def load_preprocessed_chua_csv(
     df = df.rename(
         columns={"ground_truth": "gt_answer", "answer_due_to_cue": "cue_answer"}
     )
+    df = filter_gt_cue_problems(df)
+    df = filter_duplicate_problems(df)
     df["question_with_cue"] = df["question_with_cue"].str.replace("\n\n", "\n")
     df["question"] = df["question_with_cue"].apply(extract_qn_from_cued_qn)
 

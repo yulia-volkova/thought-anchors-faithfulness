@@ -12,6 +12,26 @@ def load_hf_as_df(dataset_name: str, split: str = "train") -> pd.DataFrame:
     return ds.to_pandas()
 
 
+def filter_duplicate_problems(df: pd.DataFrame, key_column: str = "question_with_cue") -> pd.DataFrame:
+
+    before_count = len(df)
+    duplicate_counts = df.groupby(key_column).size()
+    duplicates = duplicate_counts[duplicate_counts > 1]
+    
+    if len(duplicates) > 0:
+        print(f"Found {len(duplicates)} {key_column} values with duplicates:")
+        print(f"  Total duplicate rows: {duplicates.sum() - len(duplicates)}")
+        # Keep first occurrence of each question_with_cue
+        filtered_df = df.drop_duplicates(subset=[key_column], keep="first").copy()
+        after_count = len(filtered_df)
+        print(f"Filtered out {before_count - after_count} duplicate rows (kept first occurrence)")
+    else:
+        filtered_df = df.copy()
+        print(f"No duplicate {key_column} values found")
+    
+    return filtered_df
+
+
 def compute_faithfulness_for_problem(
     df_long: pd.DataFrame,
     pi: int,
@@ -98,12 +118,12 @@ def attach_example_text(
 
 
 def main(
-    cue_gap_threshold: float = 0.3,
-    faithful_threshold: float = 0.8,
-    unfaithful_threshold: float = 0.8,
+    cue_gap_threshold: float = 0.5,
+    faithful_threshold: float = 0.9,
+    unfaithful_threshold: float = 0.9,
     mixed_min_ratio: float = 0.4,
     top_n: int = 5,
-    output_json: str = "selected_problems.json",
+    output_json: str = "selected_problems_2.json",
 ):
 
     print("Loading HF datasets...")
@@ -112,19 +132,59 @@ def main(
     df_long = load_hf_as_df("yulia-volkova/mmlu-chua-cue-long")
 
     # Drop columns from the original chua csv, not to get confused, we need only our generations
-    # Note: cue_answer is kept in df_long as it's needed for faithfulness computation (line 177)
+    # Note: cue_answer is kept in df_long as it's needed for faithfulness computation
     columns_to_drop = ["original_answer", "judge_extracted_evidence", "cued_raw_response", "model"]
     for df_name, df in [("df_base", df_base), ("df_cue", df_cue)]:
         existing_cols = [col for col in columns_to_drop if col in df.columns]
         if existing_cols:
             df.drop(columns=existing_cols, inplace=True)
             print(f"Dropped {len(existing_cols)} columns from {df_name}: {existing_cols}")
-    
 
     existing_cols_long = [col for col in columns_to_drop if col in df_long.columns]
     if existing_cols_long:
         df_long.drop(columns=existing_cols_long, inplace=True)
         print(f"Dropped {len(existing_cols_long)} columns from df_long: {existing_cols_long}")
+
+    print("\nFiltering duplicate questions...")
+    df_base = filter_duplicate_problems(df_base, key_column="question_with_cue")
+    df_cue = filter_duplicate_problems(df_cue, key_column="question_with_cue")
+    
+    unique_pis = set(df_base["pi"].unique()) & set(df_cue["pi"].unique())
+    print(f"Valid pi values after deduplication: {len(unique_pis)}")
+    
+    # Filter df_long to only include unique pi values
+    before_long_rollouts_pi = len(df_long)
+    df_long = df_long[df_long["pi"].isin(unique_pis)]
+    after_long_rollouts_pi = len(df_long)
+    removed_long_rollouts_pi = before_long_rollouts_pi - after_long_rollouts_pi
+    if removed_long_rollouts_pi > 0:
+        print(f"Filtered {removed_long_rollouts_pi} rows from df_long for duplicate pi values")
+
+    # Filter out rows where cue_answer == gt_answer (no signal for faithfulness analysis)
+    for df_name, df in [("df_base", df_base), ("df_cue", df_cue)]:
+        before = len(df)
+        mask = df["cue_answer"] != df["gt_answer"]
+        filtered = df[mask]
+        removed = before - len(filtered)
+        if removed > 0:
+            print(f"Filtered {removed} rows from {df_name} where cue_answer == gt_answer")
+        if df_name == "df_base":
+            df_base = filtered
+        else:
+            df_cue = filtered
+
+    before_long = len(df_long)
+    df_long = df_long[df_long["cue_answer"] != df_long["gt_answer"]]
+    removed_long = before_long - len(df_long)
+    if removed_long > 0:
+        print(f"Filtered {removed_long} rows from df_long where cue_answer == gt_answer")
+
+    # Filter out rows where answer is null in long datasets
+    before_null = len(df_long)
+    df_long = df_long[df_long["answer"].notna()]
+    removed_null = before_null - len(df_long)
+    if removed_null > 0:
+        print(f"Filtered {removed_null} rows from df_long where answer is null")
 
     print("Computing cue_response_gap (per pi)...")
     merged = compute_cue_response_gap(df_base, df_cue)
