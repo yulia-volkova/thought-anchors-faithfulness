@@ -4,12 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 from datasets import Dataset
-
-
-def load_hf_as_df(dataset_name: str, split: str = "train") -> pd.DataFrame:
-    from datasets import load_dataset
-    ds = load_dataset(dataset_name, split=split)
-    return ds.to_pandas()
+from hf_utils import load_hf_as_df
 
 
 def main():
@@ -19,7 +14,7 @@ def main():
     parser.add_argument(
         "--input_json",
         type=str,
-        default="selected_problems.json",
+        default="selected_problems_2.json",
     )
     parser.add_argument(
         "--cue_long_dataset",
@@ -34,6 +29,12 @@ def main():
     parser.add_argument(
         "--push_to_hub",
         action="store_true",
+    )
+    parser.add_argument(
+        "--save_csv",
+        type=str,
+        default=None,
+        help="Path to save as CSV file (e.g., selected_rollouts.csv)",
     )
     args = parser.parse_args()
 
@@ -113,11 +114,19 @@ def main():
         repo_name = "selected_problems_mmlu_professor_cue"
         hf_repo_id = f"yulia-volkova/{repo_name}-rollouts"
     
+    # Save as CSV if requested
+    if args.save_csv:
+        csv_path = Path(args.save_csv)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        df_top_rollouts.to_csv(csv_path, index=False)
+        print(f"\n✓ Saved CSV to: {csv_path}")
+
     if args.push_to_hub:
         print(f"\nPushing {len(df_top_rollouts)} rollouts to {hf_repo_id}...")
         dataset.push_to_hub(hf_repo_id)
         print(f"✓ Pushed to Hugging Face: {hf_repo_id}")
-    else:
+    elif not args.save_csv:
+        # Only save to disk if not pushing to hub and not saving CSV
         local_dir = f"rollout_outputs/{Path(hf_repo_id).name}"
         Path(local_dir).mkdir(parents=True, exist_ok=True)
         dataset.save_to_disk(local_dir)
