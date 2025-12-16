@@ -2,14 +2,9 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from datasets import load_dataset
 
 from cue_response_gap import compute_cue_response_gap
-
-
-def load_hf_as_df(dataset_name: str, split: str = "train") -> pd.DataFrame:
-    ds = load_dataset(dataset_name, split=split)
-    return ds.to_pandas()
+from hf_utils import load_hf_as_df
 
 
 def filter_duplicate_problems(df: pd.DataFrame, key_column: str = "question_with_cue") -> pd.DataFrame:
