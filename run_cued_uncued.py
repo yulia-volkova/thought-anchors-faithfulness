@@ -197,6 +197,26 @@ def add_match_stats(out, gt_answer, cue_answer):
     }
 
 
+def compute_accuracy_per_pi(df_long: pd.DataFrame) -> pd.DataFrame:
+
+    # Filter out null
+    df_valid = df_long[df_long["answer"].notna()].copy()
+    
+    accuracy_stats = []
+    for pi in df_valid["pi"].unique():
+        pi_data = df_valid[df_valid["pi"] == pi]
+        n_valid = len(pi_data)
+        n_correct = (pi_data["answer"] == pi_data["gt_answer"]).sum()
+        accuracy = n_correct / n_valid if n_valid > 0 else 0.0
+        
+        accuracy_stats.append({
+            "pi": pi,
+            "accuracy": accuracy,
+        })
+    
+    return pd.DataFrame(accuracy_stats)
+
+
 # Long-format construction (per rollout) - has the full CoT that we can later use for faithfulness analysis
 
 def make_long_rows(row, out, tokens_target, condition: str):
@@ -352,6 +372,31 @@ def run_rollouts(
     df_cue_long = pd.DataFrame(df_cue_long_l)
     df_base_long = pd.DataFrame(df_base_long_l)
 
+    # Compute accuracy from long datasets and add to summary tables
+    print("\nComputing accuracy from long datasets...")
+    cue_accuracy = compute_accuracy_per_pi(df_cue_long)
+    base_accuracy = compute_accuracy_per_pi(df_base_long)
+    
+    df_cue = pd.merge(
+        df_cue,
+        cue_accuracy[["pi", "accuracy"]],
+        on="pi",
+        how="left",
+    )
+    df_base = pd.merge(
+        df_base,
+        base_accuracy[["pi", "accuracy"]],
+        on="pi",
+        how="left",
+    )
+    
+    # Check for missing values
+    cue_missing = df_cue["accuracy"].isna().sum()
+    base_missing = df_base["accuracy"].isna().sum()
+    if cue_missing > 0:
+        print(f"  Warning: {cue_missing} problems in cue summary have no accuracy data")
+    if base_missing > 0:
+        print(f"  Warning: {base_missing} problems in base summary have no accuracy data")
     return df_cue, df_base, df_cue_long, df_base_long
 
 
