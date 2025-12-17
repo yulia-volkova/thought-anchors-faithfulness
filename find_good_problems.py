@@ -105,7 +105,7 @@ def attach_example_text(
 
     if kind == "faithful":
         mask = is_cue_answer & mentions_prof
-    else:  # "unfaithful"
+    else:  
         mask = is_cue_answer & (~mentions_prof)
 
     ex_text = text_series[mask].iloc[0] if mask.any() else None
@@ -114,11 +114,12 @@ def attach_example_text(
 
 def main(
     cue_gap_threshold: float = 0.5,
-    faithful_threshold: float = 0.9,
-    unfaithful_threshold: float = 0.9,
+    faithful_threshold: float = 0.8,
+    unfaithful_threshold: float = 0.8,
     mixed_min_ratio: float = 0.4,
     top_n: int = 5,
-    output_json: str = "selected_problems_2.json",
+    output_json: str = "selected_problems_3.json",
+    no_reasoning_acc_threshold: float | None = 0.5,
 ):
 
     print("Loading HF datasets...")
@@ -127,7 +128,7 @@ def main(
     df_long = load_hf_as_df("yulia-volkova/mmlu-chua-cue-long")
 
     # Drop columns from the original chua csv, not to get confused, we need only our generations
-    # Note: cue_answer is kept in df_long as it's needed for faithfulness computation
+    # cue_answer is kept in df_long as it's needed for faithfulness computation
     columns_to_drop = ["original_answer", "judge_extracted_evidence", "cued_raw_response", "model"]
     for df_name, df in [("df_base", df_base), ("df_cue", df_cue)]:
         existing_cols = [col for col in columns_to_drop if col in df.columns]
@@ -147,7 +148,7 @@ def main(
     unique_pis = set(df_base["pi"].unique()) & set(df_cue["pi"].unique())
     print(f"Valid pi values after deduplication: {len(unique_pis)}")
     
-    # Filter df_long to only include unique pi values
+    # Filter df_long to only include pi values mapped to unique questions, before there were duplicates of the same questions mapped to different pi values
     before_long_rollouts_pi = len(df_long)
     df_long = df_long[df_long["pi"].isin(unique_pis)]
     after_long_rollouts_pi = len(df_long)
@@ -155,7 +156,7 @@ def main(
     if removed_long_rollouts_pi > 0:
         print(f"Filtered {removed_long_rollouts_pi} rows from df_long for duplicate pi values")
 
-    # Filter out rows where cue_answer == gt_answer (no signal for faithfulness analysis)
+    # Filter out rows where cue_answer == gt_answer
     for df_name, df in [("df_base", df_base), ("df_cue", df_cue)]:
         before = len(df)
         mask = df["cue_answer"] != df["gt_answer"]
@@ -181,7 +182,48 @@ def main(
     if removed_null > 0:
         print(f"Filtered {removed_null} rows from df_long where answer is null")
 
-    print("Computing cue_response_gap (per pi)...")
+    # Filtering by no-reasoning accuracy - we may want to get rid of highly accurate samples without reasoning 
+    # since it may indicate post hoc reasoning and less interesting CoT attention patterns
+    if no_reasoning_acc_threshold is not None:
+        print(f"\nFiltering by no-reasoning accuracy threshold: < {no_reasoning_acc_threshold:.2f}")
+        df_no_reasoning = load_hf_as_df("yulia-volkova/mmlu-chua-no-reasoning-summary")
+        
+        # Merge no-reasoning accuracy into base and cue summaries
+        df_base = pd.merge(
+            df_base,
+            df_no_reasoning[["pi", "accuracy"]].rename(columns={"accuracy": "accuracy_no_reasoning"}),
+            on="pi",
+            how="inner",
+        )
+        df_cue = pd.merge(
+            df_cue,
+            df_no_reasoning[["pi", "accuracy"]].rename(columns={"accuracy": "accuracy_no_reasoning"}),
+            on="pi",
+            how="inner",
+        )
+        
+        before_base = len(df_base)
+        before_cue = len(df_cue)
+        df_base = df_base[df_base["accuracy_no_reasoning"] < no_reasoning_acc_threshold].copy()
+        df_cue = df_cue[df_cue["accuracy_no_reasoning"] < no_reasoning_acc_threshold].copy()
+        
+        removed_base = before_base - len(df_base)
+        removed_cue = before_cue - len(df_cue)
+        
+        if removed_base > 0 or removed_cue > 0:
+            print(f"Filtered out {removed_base} problems from base summary (no-reasoning accuracy >= {no_reasoning_acc_threshold:.2f})")
+            print(f"Filtered out {removed_cue} problems from cue summary (no-reasoning accuracy >= {no_reasoning_acc_threshold:.2f})")
+            print(f"Remaining problems: {len(df_base)}")
+        
+        # Also filter df_long to only include remaining pi values - we want to do the proportions conditions on topof the filtered data 
+        valid_pis_after_filter = set(df_base["pi"].unique()) & set(df_cue["pi"].unique())
+        before_long_filter = len(df_long)
+        df_long = df_long[df_long["pi"].isin(valid_pis_after_filter)]
+        removed_long_filter = before_long_filter - len(df_long)
+        if removed_long_filter > 0:
+            print(f"Filtered {removed_long_filter} rows from df_long for filtered pi values")
+
+    print("\nComputing cue_response_gap (per pi)...")
     merged = compute_cue_response_gap(df_base, df_cue)
 
     cand = merged[merged["cue_response_gap"] >= cue_gap_threshold].copy()
@@ -201,7 +243,7 @@ def main(
         question = row.get("question")
         question_with_cue = row.get("question_with_cue")
         gt_answer = row.get("gt_answer")
-        cue_answer = row.get("cue_answer")  # Same for base and cue, needed for record
+        cue_answer = row.get("cue_answer")  
         cond = row.get("cond")
         cue_type = row.get("cue_type")
 
@@ -210,6 +252,8 @@ def main(
         base_cue_match = float(row["cue_match_base"])
         cue_cue_match = float(row["cue_match_cue"])
         cue_response_gap = float(row["cue_response_gap"])
+        accuracy_base_val = row.get("accuracy_base")
+        accuracy_base = round(float(accuracy_base_val), 3) if pd.notna(accuracy_base_val) else None
 
         record_common = {
             "pi": pi,
@@ -219,7 +263,8 @@ def main(
             "gt_answer": gt_answer,
             "cue_answer": cue_answer,
             "cue_type": cue_type,
-            "cond": cond,  # original ITC-type label if present
+            "cond": cond,  # original ITC-type label
+            "accuracy_base": accuracy_base,
             "base_cue_match": base_cue_match,
             "cue_cue_match": cue_cue_match,
             "cue_response_gap": cue_response_gap,
@@ -231,7 +276,6 @@ def main(
             "prop_unfaithful": round(stats["prop_unfaithful"], 2),
         }
 
-        # Only consider problems with at least one cue-answer rollout
         if stats["n_cue_answer"] > 0:
             # Consistently faithful
             if stats["prop_faithful"] >= faithful_threshold:
@@ -271,6 +315,7 @@ def main(
             "unfaithful_threshold": unfaithful_threshold,
             "mixed_min_ratio": mixed_min_ratio,
             "top_n": top_n,
+            "no_reasoning_acc_threshold": no_reasoning_acc_threshold,
         },
         "top_faithful": top_faithful,
         "top_unfaithful": top_unfaithful,
@@ -294,4 +339,4 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    main(no_reasoning_acc_threshold=0.5) 
