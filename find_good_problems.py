@@ -254,6 +254,8 @@ def main(
         cue_response_gap = float(row["cue_response_gap"])
         accuracy_base_val = row.get("accuracy_base")
         accuracy_base = round(float(accuracy_base_val), 3) if pd.notna(accuracy_base_val) else None
+        accuracy_no_reasoning_val = row.get("accuracy_no_reasoning")
+        accuracy_no_reasoning = round(float(accuracy_no_reasoning_val), 3) if pd.notna(accuracy_no_reasoning_val) else None
 
         record_common = {
             "pi": pi,
@@ -265,6 +267,7 @@ def main(
             "cue_type": cue_type,
             "cond": cond,  # original ITC-type label
             "accuracy_base": accuracy_base,
+            "accuracy_no_reasoning": accuracy_no_reasoning,
             "base_cue_match": base_cue_match,
             "cue_cue_match": cue_cue_match,
             "cue_response_gap": cue_response_gap,
