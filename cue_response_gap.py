@@ -16,7 +16,7 @@ def prepare_merged_data(
     df_cue: pd.DataFrame,
 ) -> pd.DataFrame:
 
-    different_columns = ["gt_match", "cue_match", "other_match", "valid_responses"]
+    different_columns = ["gt_match", "cue_match", "other_match", "valid_responses", "accuracy"]
     merge_keys = ["pi"]
     
     common_columns = set(df_base.columns) & set(df_cue.columns)
