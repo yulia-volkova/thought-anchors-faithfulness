@@ -147,25 +147,40 @@ def add_token_counts(out, tokens=("ĠWait",)):
 
 def extract_answer(text: str) -> str:
     """
-    Extract answer from text in the format "Therefore, the best answer is: (X)."
+    Extract answer from text in the format "Therefore, the best answer is: (X)." or "Therefore, the best answer is: X."
     Returns the extracted answer or None if not found.
     """
+    # First try with parentheses (most common format)
     pattern = r"Therefore, the best answer is: \(([^)]+)\)\."
     match = re.search(pattern, text, re.IGNORECASE)
     if match:
         return match.group(1)
 
-    patterns = [
+    # Patterns with parentheses
+    paren_patterns = [
         r"Therefore, the best answer is:?\s*\(([^)]+)\)",
         r"the best answer is:?\s*\(([^)]+)\)",
         r"Therefore,?\s*(?:the\s*)?(?:best\s*)?answer\s*is:?\s*\(([^)]+)\)",
         r"answer\s*is:?\s*\(([^)]+)\)",
     ]
 
-    for pattern in patterns:
+    for pattern in paren_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return match.group(1)
+
+    # Patterns WITHOUT parentheses (e.g., "Therefore, the best answer is: C.")
+    no_paren_patterns = [
+        r"Therefore, the best answer is:?\s*([A-Da-d])(?:\.|,|\s|$)",  # "Therefore, the best answer is: C."
+        r"the best answer is:?\s*([A-Da-d])(?:\.|,|\s|$)",  # "the best answer is: C."
+        r"Therefore,?\s*(?:the\s*)?(?:best\s*)?answer\s*is:?\s*([A-Da-d])(?:\.|,|\s|$)",
+        r"answer\s*is:?\s*([A-Da-d])(?:\.|,|\s|$)",
+    ]
+
+    for pattern in no_paren_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
 
     return None
 
@@ -372,31 +387,6 @@ def run_rollouts(
     df_cue_long = pd.DataFrame(df_cue_long_l)
     df_base_long = pd.DataFrame(df_base_long_l)
 
-    # Compute accuracy from long datasets and add to summary tables
-    print("\nComputing accuracy from long datasets...")
-    cue_accuracy = compute_accuracy_per_pi(df_cue_long)
-    base_accuracy = compute_accuracy_per_pi(df_base_long)
-    
-    df_cue = pd.merge(
-        df_cue,
-        cue_accuracy[["pi", "accuracy"]],
-        on="pi",
-        how="left",
-    )
-    df_base = pd.merge(
-        df_base,
-        base_accuracy[["pi", "accuracy"]],
-        on="pi",
-        how="left",
-    )
-    
-    # Check for missing values
-    cue_missing = df_cue["accuracy"].isna().sum()
-    base_missing = df_base["accuracy"].isna().sum()
-    if cue_missing > 0:
-        print(f"  Warning: {cue_missing} problems in cue summary have no accuracy data")
-    if base_missing > 0:
-        print(f"  Warning: {base_missing} problems in base summary have no accuracy data")
     return df_cue, df_base, df_cue_long, df_base_long
 
 

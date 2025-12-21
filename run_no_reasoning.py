@@ -4,9 +4,10 @@ import re
 import pandas as pd
 from tqdm import tqdm
 
-from datasets import Dataset
-from hf_utils import load_hf_as_df
+from hf_utils import load_hf_as_df, push_df_to_hf
 from generate_rollouts import _load_vllm_model, _generate_vllm_batch
+
+NO_REASONING_SUFFIX = "\n<think></think><answer> The answer is"
 
 
 def format_no_reasoning_prompt(question: str) -> str:
@@ -42,7 +43,7 @@ def format_no_reasoning_prompt(question: str) -> str:
     
     # Use structured format with empty reasoning tags and answer prefix
     # The empty tags signal that reasoning is already done
-    prompt = f"""{question_clean} <think></think><answer> The answer is"""
+    prompt = f"{question_clean}{NO_REASONING_SUFFIX}"
     return prompt
 
 
@@ -107,7 +108,9 @@ def extract_answer_from_json(text: str) -> str | None:
         r'"answer"\s*:\s*"([A-Da-d])"',  # "answer": "A"
         r'"answer"\s*:\s*\'([A-Da-d])\'',  # "answer": 'A'
         r'^([A-Da-d])$',  # Just the letter
-        r'^([A-Da-d])\s',  # Letter at start
+        r'^([A-Da-d])\s',  # Letter at start followed by space
+        r'^([A-Da-d])\.',  # Letter at start followed by period (e.g., "A.")
+        r'^([A-Da-d])(?:\s|$|\.|,|;)',  # Letter at start followed by delimiter
     ]
     
     for pattern in patterns:
@@ -181,6 +184,7 @@ def run_no_reasoning_rollouts(
     top_p: float = 0.95,
     max_tokens: int = 10,  
     model: str = "deepseek-ai/deepseek-r1-distill-qwen-14b",
+    prompt_already_formatted: bool = False,  # If True, use question as-is
 ):
 
     df = df.copy()
@@ -188,7 +192,10 @@ def run_no_reasoning_rollouts(
     long_rows = []
     
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Generating no-reasoning responses"):
-        prompt = format_no_reasoning_prompt(row["question"])
+        if prompt_already_formatted:
+            prompt = row["question"]
+        else:
+            prompt = format_no_reasoning_prompt(row["question"])
         
         out = generate_no_reasoning_responses(
             prompt=prompt,
@@ -240,10 +247,6 @@ def save_to_hf(
     long_repo: str = "yulia-volkova/mmlu-chua-no-reasoning-long",
     push_to_hub: bool = False,
 ):
-    """
-    Save datasets to HuggingFace.
-    """
-    # Save locally
     os.makedirs("rollout_outputs", exist_ok=True)
     df_summary.to_csv("rollout_outputs/df_no_reasoning_summary.csv", index=False)
     df_long.to_csv("rollout_outputs/df_no_reasoning_long.csv", index=False)
@@ -251,14 +254,8 @@ def save_to_hf(
     
     if push_to_hub:
         print("\nPushing to HuggingFace Hub...")
-        
-        summary_dataset = Dataset.from_pandas(df_summary.reset_index(drop=True))
-        summary_dataset.push_to_hub(summary_repo)
-        print(f"  Pushed summary to {summary_repo}")
-        
-        long_dataset = Dataset.from_pandas(df_long.reset_index(drop=True))
-        long_dataset.push_to_hub(long_repo)
-        print(f"  Pushed long to {long_repo}")
+        push_df_to_hf(df_summary, summary_repo)
+        push_df_to_hf(df_long, long_repo)
 
 
 if __name__ == "__main__":
