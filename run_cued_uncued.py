@@ -11,12 +11,6 @@ from generate_rollouts import call_generate
 from token_utils import get_raw_tokens
 from pkld import pkld
 
-try:
-    from datasets import Dataset, DatasetDict
-    INSTALLED_DATASETS = True
-except ImportError:
-    INSTALLED_DATASETS = False
-
 
 def load_chua_csv():
     fp = "Chua_faithfulness_results.csv"
