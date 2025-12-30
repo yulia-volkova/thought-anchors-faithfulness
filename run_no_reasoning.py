@@ -7,16 +7,14 @@ from tqdm import tqdm
 from hf_utils import load_hf_as_df, push_df_to_hf
 from generate_rollouts import _load_vllm_model, _generate_vllm_batch
 
+
 NO_REASONING_SUFFIX = "\n<think></think><answer> The answer is"
 
 
 def format_no_reasoning_prompt(question: str) -> str:
-    """
-    Format question to suppress reasoning using structured template.
-    Uses empty <think> tags to guide model to skip reasoning.
-    """
+
     
-    # Remove "user:" prefix if present
+    # Remove "user:" prefix 
     question_clean = question.replace("user:", "").strip()
     
     # Remove any existing reasoning tags and their content
@@ -26,7 +24,6 @@ def format_no_reasoning_prompt(question: str) -> str:
     question_clean = re.sub(r'<think>\s*\n', '\n', question_clean)
     question_clean = question_clean.strip()
     
-    # Remove old format instructions
     old_instructions = [
         'Please think step by step and then give your answer in the format "Therefore, the best answer is: (X).". It\'s very important that you stick to this format.',
         "Please think step by step and then give your answer in the format \"Therefore, the best answer is: (X).\". It's very important that you stick to this format.",
@@ -36,7 +33,6 @@ def format_no_reasoning_prompt(question: str) -> str:
     for instruction in old_instructions:
         question_clean = question_clean.replace(instruction, "").strip()
     
-    # Clean up any double newlines left over
     while "\n\n\n" in question_clean:
         question_clean = question_clean.replace("\n\n\n", "\n\n")
     question_clean = question_clean.strip()
@@ -47,78 +43,82 @@ def format_no_reasoning_prompt(question: str) -> str:
     return prompt
 
 
+
+
+PATTERN_GROUPS = {
+    "answer_tag": {
+        "flags": re.IGNORECASE | re.DOTALL,
+        "patterns": [
+            r"<answer>\s*([A-Da-d])\s*</answer>",
+            r"<answer>\s*([A-Da-d])\s*",              # no closing tag
+            r"<answer>.*?([A-Da-d])\s*</answer>",     # text inside
+            r"<answer>.*?([A-Da-d])(?:\s|$)",         # text inside, no close
+        ],
+    },
+    "boxed": {
+        "flags": re.IGNORECASE,
+        "patterns": [
+            r"\\boxed\{([A-Da-d])\}",   # \boxed{A}
+            r"\\boxed\{([A-Da-d])",     # \boxed{A (incomplete)
+        ],
+    },
+    "answer_phrases": {
+        "flags": re.IGNORECASE,
+        "patterns": [
+            r"The answer is\s+([A-Da-d])(?:\s|$|\.|,|;|:)",
+            r"answer is\s+([A-Da-d])(?:\s|$|\.|,|;|:)",
+            r"answer:\s*([A-Da-d])(?:\s|$|\.|,|;|:)",
+            r"option\s+([A-Da-d])\s*:",
+            r"\*\*([A-Da-d])\*\*",     # **B**
+            r"\*\*([A-Da-d])\.",       # **B.
+        ],
+    },
+    "paren": {
+        "flags": re.IGNORECASE,
+        "patterns": [
+            r"\(([A-Da-d])\)\.",       # (A).
+            r"\(([A-Da-d])\)",         # (A)
+        ],
+    },
+    "json_kv_regex": {
+        "flags": re.IGNORECASE,
+        "patterns": [
+            r'"answer"\s*:\s*"([A-Da-d])"',
+            r'"answer"\s*:\s*\'([A-Da-d])\'',
+        ],
+    },
+    "direct_letter": {
+        "flags": re.IGNORECASE,
+        "patterns": [
+            r"^\s*([A-Da-d])\s*$",                 # just the letter
+            r"^\s*([A-Da-d])(?:\s|$|\.|,|;)",      # letter at start with delimiter
+            r"^\s*([A-Da-d])[:\.]",                # C: ... or B. ...
+        ],
+    },
+}
+
+def _compile_groups(groups: dict) -> list[tuple[str, re.Pattern]]:
+
+    compiled: list[tuple[str, re.Pattern]] = []
+    for name, spec in groups.items():
+        pats = spec["patterns"]
+        flags = spec.get("flags", 0)
+        # Use non-capturing wrappers so group(1) still refers to the letter capture
+        combined = "(?:" + ")|(?:".join(pats) + ")"
+        compiled.append((name, re.compile(combined, flags)))
+    return compiled
+
+
+_COMPILED_GROUPS = _compile_groups(PATTERN_GROUPS)
+
 def extract_answer_from_json(text: str) -> str | None:
-    """
-    Prioritizes (A) format as the most common.
-    """
-    
-    paren_patterns = [
-        r'\(([A-Da-d])\)\.',  # (A).
-        r'\(([A-Da-d])\)',    # (A)
-    ]
-    for pattern in paren_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1).upper()
-    
-    answer_patterns = [
-        r'The answer is\s+([A-Da-d])(?:\s|$|\.|,|;|:)',  # "The answer is A" or "The answer is A."
-        r'The answer is\s+([A-Da-d])',  # "The answer is A" (anywhere)
-        r'answer is\s+([A-Da-d])(?:\s|$|\.|,|;|:)',  # "answer is A" (without "The")
-        r'answer:\s*([A-Da-d])(?:\s|$|\.|,|;|:)',  # "answer: A"
-    ]
-    for pattern in answer_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1).upper()
-    
-    answer_tag_patterns = [
-        r'<answer>([A-Da-d])</answer>',  # <answer>A</answer>
-        r'<answer>\s*([A-Da-d])\s*</answer>',  # <answer> A </answer>
-        r'<answer>\s*([A-Da-d])\s*',  # <answer>A or <answer> A (with optional whitespace, no closing tag)
-        r'<answer>([A-Da-d])',  # <answer>A (no closing tag, no whitespace)
-        r'<answer>.*?([A-Da-d])\s*</answer>',  # <answer>...A</answer> (with text in between)
-        r'<answer>.*?([A-Da-d])(?:\s|$)',  # <answer>...A (with text, no closing tag)
-    ]
-    for pattern in answer_tag_patterns:
-        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-        if match:
-            return match.group(1).upper()
-    
-    # Try to parse as JSON
-    try:
-        json_match = re.search(r'\{[^}]*"answer"\s*:\s*"([A-Da-d])"\s*[^}]*\}', text)
-        if json_match:
-            return json_match.group(1).upper()
-    except:
-        pass
-    
-    # Try direct JSON parse
-    try:
-        data = json.loads(text.strip())
-        if "answer" in data:
-            answer = data["answer"].upper()
-            if answer in ["A", "B", "C", "D"]:
-                return answer
-    except:
-        pass
-    
-    # Fallback: look for other formats
-    patterns = [
-        r'"answer"\s*:\s*"([A-Da-d])"',  # "answer": "A"
-        r'"answer"\s*:\s*\'([A-Da-d])\'',  # "answer": 'A'
-        r'^([A-Da-d])$',  # Just the letter
-        r'^([A-Da-d])\s',  # Letter at start followed by space
-        r'^([A-Da-d])\.',  # Letter at start followed by period (e.g., "A.")
-        r'^([A-Da-d])(?:\s|$|\.|,|;)',  # Letter at start followed by delimiter
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, text.strip(), re.IGNORECASE)
-        if match:
-            return match.group(1).upper()
-    
+    s = text or ""
+    for rx in (r for _, r in _COMPILED_GROUPS):
+        m = rx.search(s)
+        if m:
+            return m.group(1).upper()
     return None
+
 
 
 def make_long_rows(row: dict, responses: list) -> list:
@@ -151,7 +151,6 @@ def compute_accuracy(responses: list, gt_answer: str) -> dict:
         "n_valid_responses": n_valid,
         "n_correct": n_correct,
     }
-
 
 
 def generate_no_reasoning_responses(
