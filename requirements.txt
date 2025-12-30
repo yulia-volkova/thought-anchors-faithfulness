@@ -4,9 +4,11 @@ tqdm
 pyarrow
 datasets
 pyyaml
+seaborn
 
 torch
 transformers
+sentence-transformers
 accelerate
 sentencepiece
 safetensors
@@ -14,3 +16,5 @@ huggingface_hub
 vllm
 pkld
 matplotlib
+circuitsvis
+scipy
