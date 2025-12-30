@@ -8,7 +8,6 @@ from typing import Dict
 
 from tqdm import tqdm
 
-# Try vLLM first, fall back to HuggingFace
 try:
     from vllm import LLM, SamplingParams
     USE_VLLM = True
@@ -32,16 +31,26 @@ _DEVICE = None
 
 # vLLM backend
 # We try to load model through vLLM first for faster generation of rollouts
-def _load_vllm_model(model_name: str, max_tokens: int = 2048):
+def _load_vllm_model(model_name: str, max_tokens: int = 2048, force_reload: bool = False):
     # when I use _MODEL, use the module-level one
     #  Once _MODEL is loaded, subsequent calls to _load_vllm_model() return the cached model without reloading
     global _MODEL
-    if _MODEL is not None:
-        return _MODEL
+    
+    max_prompt_length = 2774  # for GPQA prompts use 2836
+    required_max_model_len = max_tokens + max_prompt_length
+    
+    if _MODEL is not None and not force_reload:
+        # Check if existing model has sufficient capacity
+        current_max_len = getattr(_MODEL.llm_engine.model_config, 'max_model_len', 0)
+        if current_max_len >= required_max_model_len:
+            return _MODEL
+        else:
+            print(f"[vllm] Current model max_len={current_max_len} insufficient for {required_max_model_len}, reloading...")
+            del _MODEL
+            _MODEL = None
 
     print(f"[vllm] Loading model '{model_name}'...")
-    max_prompt_length = 675  # Estimated prompt length in tokens
-    max_model_len = max_tokens + max_prompt_length
+    max_model_len = required_max_model_len
     print(f"[vllm]   max_model_len={max_model_len} (max_tokens={max_tokens} + prompt_len={max_prompt_length})")
     _MODEL = LLM(
         model=model_name,
@@ -62,7 +71,6 @@ def _generate_vllm_batch(
     max_tokens: int,
     model_name: str,
 ) -> list:
-    """Generate multiple responses efficiently with vLLM batching."""
     llm = _load_vllm_model(model_name, max_tokens=max_tokens)
     
     sampling_params = SamplingParams(
@@ -85,12 +93,9 @@ def _generate_vllm_batch(
     return responses
 
 
-# ---------------------------------------------------------------------
-# HuggingFace backend (fallback)
-# ---------------------------------------------------------------------
 
 def _load_hf_model(model_name: str):
-    """Lazily load a Hugging Face CausalLM + tokenizer once and reuse."""
+    """Lazily load HF CausalLM + tokenizer once and reuse."""
     global _MODEL, _TOKENIZER, _DEVICE
 
     if _MODEL is not None and _TOKENIZER is not None:
@@ -182,10 +187,6 @@ async def _generate_hf_one(
     return {"error": f"Generation failed after {max_retries} attempts: {last_err}"}
 
 
-# ---------------------------------------------------------------------
-# Multiple responses + caching (unified interface)
-# ---------------------------------------------------------------------
-
 async def generate_multiple_responses(
     prompt: str,
     num_responses: int,
@@ -199,10 +200,7 @@ async def generate_multiple_responses(
     check_all_good: bool = False,
     req_exist: bool = False,
 ) -> Dict:
-    """
-    Generate multiple responses for a given prompt.
-    Uses vLLM if available (fast), otherwise falls back to HuggingFace.
-    """
+
     # Cache path
     model_str = model.replace("/", "_")
     prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[::2]
@@ -215,7 +213,6 @@ async def generate_multiple_responses(
     )
     Path(fp_out).parent.mkdir(parents=True, exist_ok=True)
 
-    # Cache check
     if os.path.exists(fp_out):
         if verbose:
             print(f"{fp_out} already exists. Loading from cache...")
@@ -300,7 +297,6 @@ async def call_generate(
     verbose: bool = True,
     req_exist: bool = False,
 ) -> Dict:
-    """Thin wrapper to keep the same API as before."""
     return await generate_multiple_responses(
         prompt=prompt,
         num_responses=num_responses,
