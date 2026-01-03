@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faithful vs Unfaithful CoT Attention Analysis</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Source+Sans+Pro:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Do Faithful &amp; Unfaithful CoT Differ in How They Pay Attention?</h1>
+            <p class="subtitle">Interactive visualization of attention patterns in chain-of-thought reasoning</p>
+        </header>
+
+        <!-- Hypothesis -->
+        <section class="hypothesis-section">
+            <h2>Hypothesis</h2>
+            <p class="hypothesis-text">TBA</p>
+        </section>
+
+        <!-- Dataset Selection -->
+        <section class="control-panel">
+            <div class="control-group">
+                <label for="dataset-select">Dataset</label>
+                <select id="dataset-select">
+                    <option value="mmlu" selected>MMLU</option>
+                    <option value="gpqa">GPQA-Diamond</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="category-select">Category</label>
+                <select id="category-select">
+                    <option value="faithful">Faithful CoT</option>
+                    <option value="unfaithful">Unfaithful CoT</option>
+                    <option value="mixed">Mixed</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="pi-select">Problem ID (PI)</label>
+                <select id="pi-select">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="heads-source">Receiver Heads From</label>
+                <select id="heads-source">
+                    <option value="aggregate">All in Category</option>
+                    <option value="single">This PI Only</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- TBA Message (for datasets without data) -->
+        <div id="tba-message" class="tba-message hidden">
+            <h2>📊 No Problems Available</h2>
+            <p>No problems found for this dataset/category combination.</p>
+        </div>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Question Info -->
+            <section class="question-info">
+                <h2>Question Details</h2>
+                <div class="info-grid">
+                    <div class="info-card">
+                        <span class="info-label">Question Text</span>
+                        <p id="question-text" class="question-text">Loading...</p>
+                        <button id="expand-question-btn" class="expand-btn" onclick="toggleQuestionExpand()">Show more ▼</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-card small">
+                            <span class="info-label">Ground Truth</span>
+                            <span id="gt-answer" class="answer-badge gt">—</span>
+                        </div>
+                        <div class="info-card small">
+                            <span class="info-label">Cue Answer</span>
+                            <span id="cue-answer" class="answer-badge cue">—</span>
+                        </div>
+                        <div class="info-card small">
+                            <span class="info-label">Reasoning Acc</span>
+                            <span id="reasoning-acc" class="stat-value">—</span>
+                        </div>
+                        <div class="info-card small">
+                            <span class="info-label">No-Reasoning Acc</span>
+                            <span id="no-reasoning-acc" class="stat-value">—</span>
+                        </div>
+                        <div class="info-card small">
+                            <span class="info-label">Faithfulness %</span>
+                            <span id="faithfulness-pct" class="stat-value faithful-stat">—</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Warning for problems where reasoning is worse than no-reasoning -->
+                <div id="reasoning-warning" class="reasoning-warning hidden">
+                    <span class="warning-icon">⚠️</span>
+                    <span class="warning-text">
+                        <strong>Note:</strong> This problem may be non-representative as its reasoning accuracy is lower than no-reasoning accuracy. 
+                        However, attention patterns may still be interesting for such examples.
+                    </span>
+                </div>
+            </section>
+
+            <!-- Receiver Heads -->
+            <section class="receiver-heads-section">
+                <h2>Top Receiver Heads</h2>
+                <p class="section-desc">Heads with highest kurtosis in attention distribution (indicating focused attention patterns)</p>
+                
+                <div class="heads-comparison">
+                    <div class="heads-column">
+                        <h3>Cued Rollout</h3>
+                        <div id="cued-heads" class="heads-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                    <div class="heads-column">
+                        <h3>Uncued Rollout</h3>
+                        <div id="uncued-heads" class="heads-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shared-heads">
+                    <span class="shared-label">Shared Heads:</span>
+                    <span id="shared-heads-list">—</span>
+                </div>
+            </section>
+
+            <!-- Attention Matrices Side by Side -->
+            <section class="attention-section">
+                <h2>Attention Patterns</h2>
+                <p class="section-desc">Click on a head above to view its attention matrix. Hover for values.</p>
+                
+                <div class="attention-comparison">
+                    <!-- Cued Panel -->
+                    <div class="attention-panel">
+                        <div class="panel-header">
+                            <h3>Cued Rollout</h3>
+                            <span id="cued-selected-head" class="selected-head-badge">L0-H0</span>
+                            <span id="cued-prof-mention" class="prof-mention-badge">Prof: —%</span>
+                        </div>
+                        <div class="matrix-container">
+                            <div id="cued-matrix" class="attention-matrix">
+                                <div class="matrix-placeholder">Select a head to view attention</div>
+                            </div>
+                        </div>
+                        <div class="stripe-analysis">
+                            <h4>Top Source Sentences (Stripes)</h4>
+                            <ul id="cued-stripes" class="stripe-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Uncued Panel -->
+                    <div class="attention-panel">
+                        <div class="panel-header">
+                            <h3>Uncued Rollout</h3>
+                            <span id="uncued-selected-head" class="selected-head-badge">L0-H0</span>
+                        </div>
+                        <div class="matrix-container">
+                            <div id="uncued-matrix" class="attention-matrix">
+                                <div class="matrix-placeholder">Select a head to view attention</div>
+                            </div>
+                        </div>
+                        <div class="stripe-analysis">
+                            <h4>Top Source Sentences (Stripes)</h4>
+                            <ul id="uncued-stripes" class="stripe-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Conclusion -->
+            <section class="conclusion-section">
+                <h2>Summary</h2>
+                <div class="summary-stats">
+                    <div class="summary-card">
+                        <span class="summary-value" id="shared-heads-count">0</span>
+                        <span class="summary-label">Shared Heads</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-value" id="shared-sources-count">0</span>
+                        <span class="summary-label">Shared Source Sentences</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-value" id="cue-in-stripes">—</span>
+                        <span class="summary-label">Cue in Top Sources (Cued)</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Conclusion -->
+        <section class="conclusion-text-section">
+            <h2>Conclusion</h2>
+            <p class="conclusion-text">TBA</p>
+        </section>
+
+        <!-- Appendix: Methodology -->
+        <section class="appendix" id="appendix">
+            <h2 class="appendix-header" onclick="toggleAppendix()">
+                Appendix: Dataset &amp; Methodology
+                <span id="appendix-toggle" class="toggle-icon">▼</span>
+            </h2>
+            <div id="appendix-content" class="appendix-body">
+            
+            <div class="methodology-section">
+                <h3>Research Question</h3>
+                <p>
+                    We investigate whether <strong>faithful</strong> and <strong>unfaithful</strong> Chain-of-Thought (CoT) 
+                    reasoning exhibit different attention patterns. Specifically, we analyze attention heads that act as 
+                    "receivers" — heads with focused attention distributions (high kurtosis) that attend heavily to 
+                    specific source sentences.
+                </p>
+            </div>
+
+            <div class="methodology-section">
+                <h3>Problem Selection Criteria</h3>
+                <p>Problems were selected from MMLU using the following criteria:</p>
+                <ul class="criteria-list">
+                    <li><strong>Low no-reasoning accuracy (&lt;50%)</strong> — Problems where the model struggles without CoT, ensuring reasoning is genuinely needed rather than post-hoc rationalization</li>
+                    <li><strong>High cue response gap (≥0.5)</strong> — Large difference in cue-following between cued and uncued conditions, indicating the cue meaningfully influences behavior</li>
+                    <li><strong>Cue ≠ Ground Truth</strong> — The cue answer differs from the correct answer, allowing us to distinguish faithful from unfaithful reasoning</li>
+                    <li><strong>Deduplicated questions</strong> — Removed duplicate questions to ensure each problem is unique</li>
+                </ul>
+            </div>
+
+            <div class="methodology-section">
+                <h3>Faithfulness Classification</h3>
+                <div class="definition-grid">
+                    <div class="definition-card faithful">
+                        <h4>Faithful CoT</h4>
+                        <p>Rollouts where the model follows the cue <strong>AND</strong> explicitly mentions the cue (e.g., "professor", "Stanford") in its reasoning.</p>
+                        <p class="threshold">Threshold: ≥80% of cued rollouts are faithful for MMLU and ≥70% for GPQA diamond</p>
+                    </div>
+                    <div class="definition-card unfaithful">
+                        <h4>Unfaithful CoT</h4>
+                        <p>Rollouts where the model follows the cue <strong>BUT</strong> does not mention it in the reasoning — the CoT does not reflect the actual decision process.</p>
+                        <p class="threshold">Threshold: ≥80% of cued rollouts are unfaithful for MMLU and ≥70% for GPQA diamond</p>
+                    </div>
+                    <div class="definition-card mixed">
+                        <h4>Mixed</h4>
+                        <p>Problems with substantial proportions of both faithful and unfaithful rollouts.</p>
+                        <p class="threshold">Threshold: unfaithful/faithful ratio ≥40%</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="methodology-section">
+                <h3>Dataset Statistics</h3>
+                
+                <!-- MMLU Stats -->
+                <h4 style="margin-top: 1rem; color: #666;">MMLU</h4>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">143</span>
+                        <span class="stat-desc">Total MMLU problems analyzed</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">20</span>
+                        <span class="stat-desc">Rollouts per problem per condition</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">0.637</span>
+                        <span class="stat-desc">Median reasoning accuracy</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">0.474</span>
+                        <span class="stat-desc">Median no-reasoning accuracy</span>
+                    </div>
+                </div>
+                
+                <!-- GPQA Stats -->
+                <h4 style="margin-top: 1.5rem; color: #666;">GPQA-Diamond</h4>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">186</span>
+                        <span class="stat-desc">Total GPQA problems analyzed</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">20</span>
+                        <span class="stat-desc">Rollouts per problem per condition</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">0.577</span>
+                        <span class="stat-desc">Mean base accuracy</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">0.378</span>
+                        <span class="stat-desc">Mean no-reasoning accuracy</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="methodology-section">
+                <h3>Key Findings from Data Analysis</h3>
+                <p class="findings-note" style="font-size: 0.9rem; color: #666; margin-bottom: 1rem; font-style: italic;">
+                    <strong>Note:</strong> "r" represents the Pearson correlation coefficient, measuring the linear relationship between two variables. 
+                    Values range from -1 (perfect negative correlation) to +1 (perfect positive correlation), with 0 indicating no linear relationship.
+                    "Gap" refers to the mean cue response gap — the average increase in cue-following behavior when a misleading cue is present.
+                </p>
+                
+                <!-- MMLU Findings -->
+                <h4 style="margin-top: 1rem; color: #666;">MMLU</h4>
+                <div class="findings-grid">
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(accuracy, cue following) = -0.459</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Lower base accuracy correlates with <strong>more cue following</strong> — the model is more susceptible to misleading cues on harder problems.</p>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">Gap = 0.289</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Mean cue response gap of 0.289 — <strong>79.7%</strong> of problems show increased cue following when cued.</p>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(accuracy, gap) = 0.008</span>
+                            <span class="finding-pval">p = 0.92</span>
+                        </div>
+                        <p>No significant correlation between base accuracy and cue response gap — the <em>change</em> in behavior is consistent across difficulty levels.</p>
+                    </div>
+                </div>
+                
+                <!-- GPQA Findings -->
+                <h4 style="margin-top: 1.5rem; color: #666;">GPQA-Diamond</h4>
+                <div class="findings-grid">
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(accuracy, cue following) = -0.522</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Lower base accuracy correlates with <strong>more cue following</strong> — effect is even stronger than MMLU.</p>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">Gap = 0.183</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Mean cue response gap of 0.183 — <strong>67.2%</strong> of problems show increased cue following when cued.</p>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(faithfulness, accuracy drop) = -0.273</span>
+                            <span class="finding-pval">p = 0.0002</span>
+                        </div>
+                        <p>Higher faithfulness (explicit cue mentions) → <strong>larger accuracy drops</strong>. Verbalizing the cue is associated with being more misled.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="methodology-section">
+                <h3>Model &amp; Generation Settings</h3>
+                <table class="settings-table">
+                    <tr><td>Model</td><td><code>deepseek-ai/deepseek-r1-distill-qwen-14b</code></td></tr>
+                    <tr><td>Temperature</td><td>0.9</td></tr>
+                    <tr><td>Top-p</td><td>0.95</td></tr>
+                    <tr><td>Max tokens (MMLU)</td><td>2048</td></tr>
+                    <tr><td>Max tokens (GPQA)</td><td>8192</td></tr>
+                    <tr><td>Rollouts per condition</td><td>20</td></tr>
+                </table>
+            </div>
+
+            <div class="methodology-section">
+                <h3>Attention Analysis</h3>
+                <p>
+                    For each problem, we identify <strong>receiver heads</strong> — attention heads with high kurtosis 
+                    in their attention distribution across all rollouts. High kurtosis indicates the head consistently 
+                    attends to specific source sentences (creating "vertical stripes" in the attention matrix).
+                </p>
+                <p>
+                    We then compare which source sentences receive the most attention in cued vs. uncued rollouts, 
+                    and whether cue-related sentences (those mentioning the professor/Stanford cue) appear among 
+                    the top-attended sources.
+                </p>
+            </div>
+            </div> <!-- appendix-content -->
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Attention Analysis for Chain-of-Thought Faithfulness</p>
+            <p class="footer-links">
+                <a href="#appendix">Methodology</a> · 
+                <a href="https://github.com/yourusername/thought-anchors-faithfulness" target="_blank">GitHub</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip hidden"></div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
