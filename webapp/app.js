@@ -10,6 +10,7 @@ let currentPI = null;
 let currentHeadsSource = 'aggregate';
 let selectedCuedHead = null;
 let selectedUncuedHead = null;
+let selectedFvuHead = null;  // For faithful vs unfaithful section
 
 // DOM Elements
 const datasetSelect = document.getElementById('dataset-select');
@@ -174,12 +175,12 @@ function updateQuestionInfo() {
         const faithPct = problem.faithfulness_rate * 100;
         document.getElementById('faithfulness-pct').textContent = `${faithPct.toFixed(0)}%`;
     } else {
-        const attnData = getAttentionData(currentPI);
-        if (attnData && attnData.config && attnData.config.cued_professor_mention_proportion !== undefined) {
-            const faithPct = attnData.config.cued_professor_mention_proportion * 100;
-            document.getElementById('faithfulness-pct').textContent = `${faithPct.toFixed(0)}%`;
-        } else {
-            document.getElementById('faithfulness-pct').textContent = '—';
+    const attnData = getAttentionData(currentPI);
+    if (attnData && attnData.config && attnData.config.cued_professor_mention_proportion !== undefined) {
+        const faithPct = attnData.config.cued_professor_mention_proportion * 100;
+        document.getElementById('faithfulness-pct').textContent = `${faithPct.toFixed(0)}%`;
+    } else {
+        document.getElementById('faithfulness-pct').textContent = '—';
         }
     }
 
@@ -273,7 +274,9 @@ function selectHead(badge, condition) {
     
     if (condition === 'cued') {
         selectedCuedHead = { layer, head };
+        selectedFvuHead = { layer, head };  // Sync FvU head with cued head
         updateAttentionMatrix('cued');
+        updateFaithfulVsUnfaithful();  // Update FvU section too
     } else {
         selectedUncuedHead = { layer, head };
         updateAttentionMatrix('uncued');
@@ -283,7 +286,160 @@ function selectHead(badge, condition) {
 function updateAttentionView() {
     updateAttentionMatrix('cued');
     updateAttentionMatrix('uncued');
+    updateFaithfulVsUnfaithful();
     updateSummary();
+}
+
+// ================================
+// Faithful vs Unfaithful Section
+// ================================
+function updateFaithfulVsUnfaithful() {
+    const fvuSection = document.getElementById('fvu-section');
+    const fvuNotAvailable = document.getElementById('fvu-not-available');
+    const fvuComparison = document.getElementById('fvu-comparison');
+    
+    const attnData = getAttentionData(currentPI);
+    
+    // Check if FvU data is available
+    if (!attnData || !attnData.has_faithful_vs_unfaithful) {
+        fvuSection.classList.remove('hidden');
+        fvuNotAvailable.classList.remove('hidden');
+        fvuNotAvailable.innerHTML = `<p>⚠️ Faithful vs Unfaithful comparison not available for this problem. 
+            This requires both a cued rollout that mentions the professor AND one that doesn't.</p>`;
+        fvuComparison.classList.add('hidden');
+        return;
+    }
+    
+    // Check if consistently faithful (no unfaithful rollout could be generated)
+    if (attnData.consistently_faithful) {
+        const rate = attnData.generation_faithful_rate || 1.0;
+        fvuSection.classList.remove('hidden');
+        fvuNotAvailable.classList.remove('hidden');
+        fvuNotAvailable.innerHTML = `
+            <p>🎯 <strong>Consistently Faithful:</strong> This problem produces faithful CoT rollouts 
+            <strong>${(rate * 100).toFixed(0)}%</strong> of the time when cued. 
+            No unfaithful rollout could be generated after 5 attempts.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9em; opacity: 0.8;">
+                The faithful attention pattern is shown below (no unfaithful comparison available).
+            </p>`;
+        fvuComparison.classList.remove('hidden');
+        
+        // Hide the unfaithful panel, show faithful
+        const unfaithfulPanel = document.querySelector('.unfaithful-panel');
+        const faithfulPanel = document.querySelector('.faithful-panel');
+        if (unfaithfulPanel) unfaithfulPanel.classList.add('hidden');
+        if (faithfulPanel) faithfulPanel.classList.remove('hidden');
+        
+        // Show only faithful
+        if (!selectedFvuHead && selectedCuedHead) {
+            selectedFvuHead = selectedCuedHead;
+        }
+        if (!selectedFvuHead) {
+            const cuedHeads = attnData.top_heads.cued || [];
+            if (cuedHeads.length > 0) {
+                selectedFvuHead = { layer: cuedHeads[0][0][0], head: cuedHeads[0][0][1] };
+            }
+        }
+        updateFvuMatrix('faithful', attnData, selectedFvuHead);
+        return;
+    }
+    
+    // Check if consistently unfaithful (no faithful rollout could be generated)
+    if (attnData.consistently_unfaithful) {
+        const rate = attnData.generation_faithful_rate || 0.0;
+        fvuSection.classList.remove('hidden');
+        fvuNotAvailable.classList.remove('hidden');
+        fvuNotAvailable.innerHTML = `
+            <p>🔇 <strong>Consistently Unfaithful:</strong> This problem produces unfaithful CoT rollouts 
+            <strong>${((1 - rate) * 100).toFixed(0)}%</strong> of the time when cued (never mentions the cue). 
+            No faithful rollout could be generated after 5 attempts.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9em; opacity: 0.8;">
+                The unfaithful attention pattern is shown below (no faithful comparison available).
+            </p>`;
+        fvuComparison.classList.remove('hidden');
+        
+        // Hide the faithful panel, show unfaithful
+        const faithfulPanel = document.querySelector('.faithful-panel');
+        const unfaithfulPanel = document.querySelector('.unfaithful-panel');
+        if (faithfulPanel) faithfulPanel.classList.add('hidden');
+        if (unfaithfulPanel) unfaithfulPanel.classList.remove('hidden');
+        
+        // Show only unfaithful
+        if (!selectedFvuHead && selectedCuedHead) {
+            selectedFvuHead = selectedCuedHead;
+        }
+        if (!selectedFvuHead) {
+            const cuedHeads = attnData.top_heads.cued || [];
+            if (cuedHeads.length > 0) {
+                selectedFvuHead = { layer: cuedHeads[0][0][0], head: cuedHeads[0][0][1] };
+            }
+        }
+        updateFvuMatrix('unfaithful', attnData, selectedFvuHead);
+        return;
+    }
+    
+    // Show the full comparison (both faithful and unfaithful)
+    fvuSection.classList.remove('hidden');
+    fvuNotAvailable.classList.add('hidden');
+    fvuComparison.classList.remove('hidden');
+    
+    // Show the unfaithful panel
+    const unfaithfulPanel = document.querySelector('.unfaithful-panel');
+    if (unfaithfulPanel) unfaithfulPanel.classList.remove('hidden');
+    
+    // Use the same head as the cued rollout for consistency
+    if (!selectedFvuHead && selectedCuedHead) {
+        selectedFvuHead = selectedCuedHead;
+    }
+    
+    if (!selectedFvuHead) {
+        // Default to first cued head
+        const cuedHeads = attnData.top_heads.cued || [];
+        if (cuedHeads.length > 0) {
+            selectedFvuHead = { layer: cuedHeads[0][0][0], head: cuedHeads[0][0][1] };
+        }
+    }
+    
+    // Update both faithful and unfaithful matrices
+    updateFvuMatrix('faithful', attnData, selectedFvuHead);
+    updateFvuMatrix('unfaithful', attnData, selectedFvuHead);
+}
+
+function updateFvuMatrix(type, attnData, selectedHead) {
+    const matrixEl = document.getElementById(`${type}-matrix`);
+    const headBadgeEl = document.getElementById(`fvu-${type}-head`);
+    const stripesEl = document.getElementById(`${type}-stripes`);
+    
+    if (!selectedHead) {
+        matrixEl.innerHTML = '<div class="matrix-placeholder">No head selected</div>';
+        stripesEl.innerHTML = '<li>No data</li>';
+        return;
+    }
+    
+    const headKey = `L${selectedHead.layer}-H${selectedHead.head}`;
+    headBadgeEl.textContent = headKey;
+    
+    // Get the appropriate data
+    const attentionData = type === 'faithful' ? attnData.faithful_attention : attnData.unfaithful_attention;
+    const rolloutData = type === 'faithful' ? attnData.faithful_rollout : attnData.unfaithful_rollout;
+    
+    if (!attentionData || !attentionData[headKey]) {
+        matrixEl.innerHTML = '<div class="matrix-placeholder">Attention matrix not available for this head</div>';
+        stripesEl.innerHTML = '<li>No data</li>';
+        return;
+    }
+    
+    const headData = attentionData[headKey];
+    const matrix = headData.matrix;
+    const sentences = rolloutData.sentences || [];
+    const promptLen = rolloutData.prompt_len || 0;
+    
+    // Render matrix
+    renderMatrix(matrixEl, matrix, sentences, promptLen, type);
+    
+    // Find and display stripes
+    const stripes = findStripes(matrix, sentences, promptLen, type);
+    renderStripes(stripesEl, stripes, type);
 }
 
 function updateAttentionMatrix(condition) {

@@ -180,6 +180,59 @@
                 </div>
             </section>
 
+            <!-- Faithful vs Unfaithful Comparison (NEW) -->
+            <section id="fvu-section" class="attention-section fvu-section hidden">
+                <h2>Faithful vs Unfaithful Comparison</h2>
+                <p class="section-desc">
+                    Comparing two <strong>cued</strong> rollouts: one that <em>mentions</em> the cue (faithful) vs one that <em>follows</em> the cue without mentioning it (unfaithful).
+                </p>
+                
+                <div id="fvu-not-available" class="fvu-not-available hidden">
+                    <p>⚠️ Faithful vs Unfaithful comparison not available for this problem. 
+                    This requires both a cued rollout that mentions the professor AND one that doesn't.</p>
+                </div>
+                
+                <div id="fvu-comparison" class="attention-comparison">
+                    <!-- Faithful Panel -->
+                    <div class="attention-panel faithful-panel">
+                        <div class="panel-header">
+                            <h3>🎯 Faithful (Cued + Mentions)</h3>
+                            <span id="fvu-faithful-head" class="selected-head-badge">L0-H0</span>
+                        </div>
+                        <div class="matrix-container">
+                            <div id="faithful-matrix" class="attention-matrix">
+                                <div class="matrix-placeholder">Select a head to view attention</div>
+                            </div>
+                        </div>
+                        <div class="stripe-analysis">
+                            <h4>Top Source Sentences</h4>
+                            <ul id="faithful-stripes" class="stripe-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Unfaithful Panel -->
+                    <div class="attention-panel unfaithful-panel">
+                        <div class="panel-header">
+                            <h3>🔇 Unfaithful (Cued + Silent)</h3>
+                            <span id="fvu-unfaithful-head" class="selected-head-badge">L0-H0</span>
+                        </div>
+                        <div class="matrix-container">
+                            <div id="unfaithful-matrix" class="attention-matrix">
+                                <div class="matrix-placeholder">Select a head to view attention</div>
+                            </div>
+                        </div>
+                        <div class="stripe-analysis">
+                            <h4>Top Source Sentences</h4>
+                            <ul id="unfaithful-stripes" class="stripe-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Conclusion -->
             <section class="conclusion-section">
                 <h2>Summary</h2>

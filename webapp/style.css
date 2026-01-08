@@ -990,3 +990,51 @@ section h2 {
     color: #4a3d00;
 }
 
+/* ================================
+   Faithful vs Unfaithful Section
+   ================================ */
+
+.fvu-section {
+    border-top: 3px solid #8b5cf6;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+}
+
+.fvu-section h2 {
+    color: #6d28d9;
+}
+
+.fvu-not-available {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin: 1rem 0;
+    color: #92400e;
+}
+
+.fvu-not-available p {
+    margin: 0;
+}
+
+.fvu-not-available strong {
+    color: #78350f;
+}
+
+.faithful-panel .panel-header {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-bottom: 2px solid #22c55e;
+}
+
+.faithful-panel .panel-header h3 {
+    color: #166534;
+}
+
+.unfaithful-panel .panel-header {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-bottom: 2px solid #ef4444;
+}
+
+.unfaithful-panel .panel-header h3 {
+    color: #991b1b;
+}

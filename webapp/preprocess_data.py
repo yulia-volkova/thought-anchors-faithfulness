@@ -330,6 +330,41 @@ def load_mmlu_attention_data():
         if os.path.exists(uncued_attention_path) and uncued_rollout:
             uncued_attention_summary = summarize_attention(uncued_attention_path, uncued_rollout, top_heads['uncued'])
         
+        # Check for faithful vs unfaithful comparison data
+        fvu_dir = os.path.join(folder_path, 'faithful_vs_unfaithful')
+        faithful_rollout = None
+        unfaithful_rollout = None
+        faithful_attention_summary = None
+        unfaithful_attention_summary = None
+        has_faithful_vs_unfaithful = config.get('has_faithful_vs_unfaithful', False)
+        
+        if has_faithful_vs_unfaithful and os.path.exists(fvu_dir):
+            faithful_rollout_path = os.path.join(fvu_dir, 'faithful', 'rollout.json')
+            unfaithful_rollout_path = os.path.join(fvu_dir, 'unfaithful', 'rollout.json')
+            
+            if os.path.exists(faithful_rollout_path):
+                with open(faithful_rollout_path, 'r') as f:
+                    faithful_rollout = json.load(f)
+            
+            if os.path.exists(unfaithful_rollout_path):
+                with open(unfaithful_rollout_path, 'r') as f:
+                    unfaithful_rollout = json.load(f)
+            
+            # Load faithful vs unfaithful attention
+            faithful_attn_path = os.path.join(fvu_dir, 'faithful', 'attention.npz')
+            unfaithful_attn_path = os.path.join(fvu_dir, 'unfaithful', 'attention.npz')
+            
+            if os.path.exists(faithful_attn_path) and faithful_rollout:
+                faithful_attention_summary = summarize_attention(faithful_attn_path, faithful_rollout, top_heads['cued'])
+            
+            if os.path.exists(unfaithful_attn_path) and unfaithful_rollout:
+                unfaithful_attention_summary = summarize_attention(unfaithful_attn_path, unfaithful_rollout, top_heads['cued'])
+        
+        # Check if consistently faithful or unfaithful
+        consistently_faithful = config.get('consistently_faithful', False)
+        consistently_unfaithful = config.get('consistently_unfaithful', False)
+        generation_faithful_rate = config.get('generation_faithful_rate', None)
+        
         attention_data[pi] = {
             'config': config,
             'top_heads': top_heads,
@@ -343,9 +378,30 @@ def load_mmlu_attention_data():
             },
             'cued_attention': cued_attention_summary,
             'uncued_attention': uncued_attention_summary,
+            # Faithful vs Unfaithful comparison
+            'has_faithful_vs_unfaithful': has_faithful_vs_unfaithful,
+            'consistently_faithful': consistently_faithful,
+            'consistently_unfaithful': consistently_unfaithful,
+            'generation_faithful_rate': generation_faithful_rate,
+            'faithful_rollout': {
+                'sentences': faithful_rollout['sentences'] if faithful_rollout else [],
+                'prompt_len': faithful_rollout.get('prompt_len', 0) if faithful_rollout else 0,
+            } if faithful_rollout else None,
+            'unfaithful_rollout': {
+                'sentences': unfaithful_rollout['sentences'] if unfaithful_rollout else [],
+                'prompt_len': unfaithful_rollout.get('prompt_len', 0) if unfaithful_rollout else 0,
+            } if unfaithful_rollout else None,
+            'faithful_attention': faithful_attention_summary,
+            'unfaithful_attention': unfaithful_attention_summary,
         }
         
-        print(f"  Loaded attention data for PI {pi}")
+        fvu_status = ""
+        if has_faithful_vs_unfaithful:
+            if consistently_faithful:
+                fvu_status = f" (consistently faithful: {generation_faithful_rate:.0%})"
+            else:
+                fvu_status = " (with faithful vs unfaithful)"
+        print(f"  Loaded attention data for PI {pi}" + fvu_status)
     
     return attention_data
 
@@ -447,6 +503,11 @@ def load_gpqa_attention_data():
             if os.path.exists(unfaithful_attn_path) and unfaithful_rollout:
                 unfaithful_attention_summary = summarize_attention(unfaithful_attn_path, unfaithful_rollout, top_heads['cued'])
         
+        # Check if consistently faithful or unfaithful
+        consistently_faithful = config.get('consistently_faithful', False)
+        consistently_unfaithful = config.get('consistently_unfaithful', False)
+        generation_faithful_rate = config.get('generation_faithful_rate', None)
+        
         attention_data[pi] = {
             'config': config,
             'top_heads': top_heads,
@@ -462,6 +523,9 @@ def load_gpqa_attention_data():
             'uncued_attention': uncued_attention_summary,
             # Faithful vs Unfaithful comparison
             'has_faithful_vs_unfaithful': has_faithful_vs_unfaithful,
+            'consistently_faithful': consistently_faithful,
+            'consistently_unfaithful': consistently_unfaithful,
+            'generation_faithful_rate': generation_faithful_rate,
             'faithful_rollout': {
                 'sentences': faithful_rollout['sentences'] if faithful_rollout else [],
                 'prompt_len': faithful_rollout.get('prompt_len', 0) if faithful_rollout else 0,
@@ -474,8 +538,13 @@ def load_gpqa_attention_data():
             'unfaithful_attention': unfaithful_attention_summary,
         }
         
-        print(f"  Loaded attention data for GPQA PI {pi}" + 
-              (" (with faithful vs unfaithful)" if has_faithful_vs_unfaithful else ""))
+        fvu_status = ""
+        if has_faithful_vs_unfaithful:
+            if consistently_faithful:
+                fvu_status = f" (consistently faithful: {generation_faithful_rate:.0%})"
+            else:
+                fvu_status = " (with faithful vs unfaithful)"
+        print(f"  Loaded attention data for GPQA PI {pi}" + fvu_status)
     
     return attention_data
 
