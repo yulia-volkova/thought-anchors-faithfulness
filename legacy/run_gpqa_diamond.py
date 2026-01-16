@@ -31,7 +31,7 @@ def run_gpqa_pipeline(
     use_prepared_hf: bool = True,  # Use already prepared HF dataset
     prepared_hf_id: str = PREPARED_HF_DATASET,
     source: str = "fingertap",  # "idavidrein" or "fingertap" 
-    idavidrein_csv_path: str = "gpqa_diamond.csv",
+    idavidrein_csv_path: str = "data/gpqa_diamond.csv",
     # Generation params
     num_responses: int = 20,
     temperature: float = 0.7,
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     SOURCE = "huggingface"  # "local" or "huggingface"
-    CSV_PATH = "gpqa_diamond.csv"  
+    CSV_PATH = "data/gpqa_diamond.csv"  
     NUM_RESPONSES = 20
     MAX_TOKENS = 8192
     SEED = 42

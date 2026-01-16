@@ -1,4 +1,4 @@
-# build_mmlu_cued.py
+# prepare_mmlu_dataset.py
 
 import random
 import argparse
@@ -43,7 +43,7 @@ def main():
     parser.add_argument(
         "--output_csv",
         type=str,
-        default="mmlu_cued.csv",
+        default="data/mmlu_cued.csv",
         help="Output CSV file.",
     )
     args = parser.parse_args()

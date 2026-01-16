@@ -105,7 +105,7 @@ for q_idx, test_question in enumerate(test_questions, 1):
     print(formatted_prompt)
     print("\n")
     
-]    print("GENERATING 2 TEST RESPONSES...")
+    print("GENERATING 2 TEST RESPONSES...")
     print("-" * 80)
     
     try:
