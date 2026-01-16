@@ -4,7 +4,7 @@ import re
 import pandas as pd
 from tqdm import tqdm
 
-from hf_utils import load_hf_as_df, push_df_to_hf
+from hf_utils import load_hf_as_df
 from generate_rollouts import _load_vllm_model, _generate_vllm_batch
 
 
@@ -239,64 +239,4 @@ def run_no_reasoning_rollouts(
     return df_summary, df_long
 
 
-def save_to_hf(
-    df_summary: pd.DataFrame,
-    df_long: pd.DataFrame,
-    summary_repo: str = "yulia-volkova/mmlu-chua-no-reasoning-summary",
-    long_repo: str = "yulia-volkova/mmlu-chua-no-reasoning-long",
-    push_to_hub: bool = False,
-):
-    os.makedirs("rollout_outputs", exist_ok=True)
-    df_summary.to_csv("rollout_outputs/df_no_reasoning_summary.csv", index=False)
-    df_long.to_csv("rollout_outputs/df_no_reasoning_long.csv", index=False)
-    print("\nSaved CSVs to rollout_outputs/")
-    
-    if push_to_hub:
-        print("\nPushing to HuggingFace Hub...")
-        push_df_to_hf(df_summary, summary_repo)
-        push_df_to_hf(df_long, long_repo)
-
-
-if __name__ == "__main__":
-    source_dataset = "yulia-volkova/mmlu-chua-base-summary"
-    model = "deepseek-ai/deepseek-r1-distill-qwen-14b"
-    temperature = 0.7
-    top_p = 0.95
-    max_tokens = 3
-    num_responses = 20
-    
-    summary_repo = "yulia-volkova/mmlu-chua-no-reasoning-summary"
-    long_repo = "yulia-volkova/mmlu-chua-no-reasoning-long"
-    push_to_hub = True
-    
-    # Load source dataset
-    print(f"Loading source dataset: {source_dataset}")
-    df = load_hf_as_df(source_dataset)
-    print(f"Loaded {len(df)} problems")
-    
-    # Check required columns
-    required_cols = ["pi", "question", "gt_answer"]
-    missing_cols = [c for c in required_cols if c not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Missing required columns: {missing_cols}")
-    
-    # Run rollouts
-    df_summary, df_long = run_no_reasoning_rollouts(
-        df=df,
-        num_responses=num_responses,
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-        model=model,
-    )
-    
-    save_to_hf(
-        df_summary=df_summary,
-        df_long=df_long,
-        summary_repo=summary_repo,
-        long_repo=long_repo,
-        push_to_hub=push_to_hub,
-    )
-    
-    print("\nDone!")
 

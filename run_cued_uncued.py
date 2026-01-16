@@ -13,7 +13,7 @@ from pkld import pkld
 
 
 def load_chua_csv():
-    fp = "Chua_faithfulness_results.csv"
+    fp = "data/Chua_faithfulness_results.csv"
     df = pd.read_csv(fp)
     return df
 
@@ -425,92 +425,3 @@ def load_preprocessed_chua_csv(
 
 
 
-def save_as_hf_dataset(
-    df_cue,
-    df_base,
-    df_cue_long,
-    df_base_long,
-    base_repo_id: str | None = None,
-    push_to_hub: bool = False,
-):
-    """
-    Save each dataframe as a separate HF dataset.
-
-    - Creates 4 separate datasets: cue_summary, base_summary, cue_long, base_long
-    - If `push_to_hub=True` and `base_repo_id` is provided and `datasets` is installed,
-      pushes each dataset to the Hub (requires HF token configured).
-    - Each dataset will be pushed to: {base_repo_id}-{suffix}
-    """
-    if not INSTALLED_DATASETS:
-        print("'datasets' package not installed; skipping HF dataset creation.")
-        return
-
-    datasets = {
-        "cue_summary": df_cue,
-        "base_summary": df_base,
-        "cue_long": df_cue_long,
-        "base_long": df_base_long,
-    }
-
-    for name, df in datasets.items():
-        dataset = Dataset.from_pandas(df.reset_index(drop=True))
-        
-        if push_to_hub and base_repo_id is not None:
-            repo_id = f"{base_repo_id}-{name}"
-            dataset.push_to_hub(repo_id)
-            print(f" Pushed {name} dataset to Hugging Face Hub: {repo_id}")
-        else:
-            # Save locally if not pushing to hub
-            local_dir = f"rollout_outputs/{name}_hf"
-            os.makedirs(local_dir, exist_ok=True)
-            dataset.save_to_disk(local_dir)
-            print(f" Saved {name} dataset to {local_dir}")
-
-
-
-
-if __name__ == "__main__":
-    model = "deepseek-ai/deepseek-r1-distill-qwen-14b"  
-    temperature = 0.7
-    top_p = 0.95
-    max_tokens = 2048 # original paper: 16384, but we try this first, we add 675 on top in generate_rollouts._load_vllm_model if done through vllm
-    num_responses = 20 # original paper: 100
-
-    # Stanford Professor cues only, ITC failure + success
-    df = load_preprocessed_chua_csv(
-        cue_type="Professor",
-        cond=["itc_failure", "itc_success"],
-    )
-
-    tokens = ("ĠWait",)
-
-    df_cue, df_base, df_cue_long, df_base_long = run_rollouts(
-        df,
-        num_responses=num_responses,
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-        provider="local",
-        model=model,
-        max_retries=6,
-        tokens_target=tokens,
-    )
-
-    # Save locally
-    os.makedirs("rollout_outputs", exist_ok=True)
-    df_cue.to_csv("rollout_outputs/df_cue_summary.csv", index=False)
-    df_base.to_csv("rollout_outputs/df_base_summary.csv", index=False)
-    df_cue_long.to_csv("rollout_outputs/df_cue_long.csv", index=False)
-    df_base_long.to_csv("rollout_outputs/df_base_long.csv", index=False)
-    print(" Saved CSVs to rollout_outputs/")
-
-    # Save to HF  
-    base_repo_id = "yulia-volkova/mmlu-chua-rollouts" 
-    save_as_hf_dataset(
-        df_cue,
-        df_base,
-        df_cue_long,
-        df_base_long,
-        base_repo_id=base_repo_id,
-        push_to_hub=True, 
-    )
