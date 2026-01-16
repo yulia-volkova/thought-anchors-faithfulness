@@ -7,6 +7,13 @@ venv/
 
 # Data files
 Chua_faithfulness_results.csv
+data/gpqa_diamond.csv
+data/mmlu_cued.csv
+data/selected_rollouts_*.csv
+final/
+response_cache/
+rollout_outputs/
+.pkljar/
 
 # Python
 __pycache__/
