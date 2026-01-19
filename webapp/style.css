@@ -177,6 +177,60 @@ body {
     box-shadow: 0 0 0 3px rgba(196, 90, 59, 0.1);
 }
 
+/* Info Icon and Tooltip */
+.info-icon {
+    display: inline-block;
+    margin-left: var(--spacing-xs);
+    font-size: 0.75rem;
+    cursor: help;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    position: relative;
+}
+
+.info-icon:hover {
+    opacity: 1;
+}
+
+.control-group {
+    position: relative;
+}
+
+.control-tooltip {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: var(--spacing-xs);
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 300px;
+    max-width: 400px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.control-tooltip p {
+    margin: 0;
+}
+
+.control-tooltip p + p {
+    margin-top: 0.5rem;
+}
+
+.control-tooltip a {
+    color: var(--accent-cued);
+    text-decoration: none;
+}
+
+.control-tooltip a:hover {
+    text-decoration: underline;
+}
+
 /* TBA Message */
 .tba-message {
     text-align: center;
@@ -360,8 +414,15 @@ section h2 {
 .heads-column h3 {
     font-size: 1rem;
     font-weight: 600;
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
     color: var(--text-secondary);
+}
+
+.column-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-sm);
+    font-style: italic;
 }
 
 .heads-list {
@@ -382,6 +443,8 @@ section h2 {
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all 0.2s;
+    position: relative;
+    color: var(--text-primary);
 }
 
 .head-badge:hover {
@@ -390,26 +453,18 @@ section h2 {
 }
 
 .head-badge.selected {
-    background: var(--accent-cued-light);
-    border-color: var(--accent-cued);
-    color: var(--accent-cued);
+    border: 2px solid var(--text-primary);
 }
 
-.head-badge.cued.selected {
-    background: var(--accent-cued-light);
-    border-color: var(--accent-cued);
-    color: var(--accent-cued);
-}
-
-.head-badge.uncued.selected {
-    background: var(--accent-uncued-light);
-    border-color: var(--accent-uncued);
-    color: var(--accent-uncued);
-}
-
-.head-badge.shared {
-    background: var(--accent-shared-light);
-    border-color: var(--accent-shared);
+.head-badge.cued.has-cue::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background: var(--text-primary);
+    border-radius: 50%;
 }
 
 .head-badge .kurtosis {
@@ -430,7 +485,7 @@ section h2 {
 
 #shared-heads-list {
     font-family: var(--font-mono);
-    color: var(--accent-shared);
+    color: var(--text-primary);
 }
 
 /* Attention Section */
@@ -568,10 +623,12 @@ section h2 {
 }
 
 .stripe-text.cue-sentence {
-    background: var(--accent-cued-light);
+    background: var(--accent-cued-light) !important;
     padding: var(--spacing-xs);
     border-radius: var(--radius-sm);
-    color: var(--accent-cued);
+    color: var(--accent-cued) !important;
+    border-left: 3px solid var(--accent-cued);
+    padding-left: var(--spacing-sm);
 }
 
 .cue-marker {

@@ -81,6 +81,25 @@ function setupEventListeners() {
         updateReceiverHeads();
         updateAttentionView();
     });
+
+    // Setup tooltip for receiver heads source info
+    const headsSourceInfo = document.getElementById('heads-source-info');
+    const headsSourceTooltip = document.getElementById('heads-source-tooltip');
+    if (headsSourceInfo && headsSourceTooltip) {
+        headsSourceInfo.addEventListener('mouseenter', () => {
+            headsSourceTooltip.classList.remove('hidden');
+        });
+        headsSourceInfo.addEventListener('mouseleave', () => {
+            headsSourceTooltip.classList.add('hidden');
+        });
+        // Also show/hide when hovering over the tooltip itself
+        headsSourceTooltip.addEventListener('mouseenter', () => {
+            headsSourceTooltip.classList.remove('hidden');
+        });
+        headsSourceTooltip.addEventListener('mouseleave', () => {
+            headsSourceTooltip.classList.add('hidden');
+        });
+    }
 }
 
 function updateUI() {
@@ -266,6 +285,49 @@ function updateQuestionInfo() {
     updateAttentionView();
 }
 
+// Helper function to check if a head has cue mentions in its top source sentences
+function headHasCueInTopSources(attnData, layer, head, condition) {
+    if (!attnData) return false;
+    
+    const headKey = `L${layer}-H${head}`;
+    
+    // Get attention data for this head (use reasoning-only version if in reasoning mode)
+    let conditionAttn;
+    if (currentAttentionMode === 'reasoning') {
+        conditionAttn = condition === 'cued' ? attnData.cued_attention_reasoning : attnData.uncued_attention_reasoning;
+    } else {
+        conditionAttn = condition === 'cued' ? attnData.cued_attention : attnData.uncued_attention;
+    }
+    // Fall back to full attention if reasoning version not available
+    if (!conditionAttn) {
+        conditionAttn = condition === 'cued' ? attnData.cued_attention : attnData.uncued_attention;
+    }
+    
+    if (!conditionAttn || !conditionAttn[headKey]) return false;
+    
+    const rolloutData = condition === 'cued' ? attnData.cued_rollout : attnData.uncued_rollout;
+    if (!rolloutData) return false;
+    
+    const headData = conditionAttn[headKey];
+    const matrix = headData.matrix;
+    const allSentences = rolloutData.sentences || [];
+    const fullPromptLen = Math.min(rolloutData.prompt_len || 0, allSentences.length);
+    
+    // In reasoning mode, only show reasoning sentences (no prompt)
+    let sentences, promptLen;
+    if (currentAttentionMode === 'reasoning') {
+        sentences = allSentences.slice(fullPromptLen);
+        promptLen = 0;
+    } else {
+        sentences = allSentences;
+        promptLen = fullPromptLen;
+    }
+    
+    // Find top source sentences (stripes) and check if any contain cues
+    const stripes = findStripes(matrix, sentences, promptLen, condition);
+    return stripes.some(stripe => stripe.isCue);
+}
+
 function updateReceiverHeads() {
     const attnData = getAttentionData(currentPI);
     
@@ -298,9 +360,10 @@ function updateReceiverHeads() {
         const kurtosis = h[1];
         const headKey = `L${layer}-H${head}`;
         const isShared = sharedHeads.includes(headKey);
+        const hasCueInTopSources = headHasCueInTopSources(attnData, layer, head, 'cued');
         
         const badge = document.createElement('span');
-        badge.className = `head-badge cued ${isShared ? 'shared' : ''} ${idx === 0 ? 'selected' : ''}`;
+        badge.className = `head-badge cued ${isShared ? 'shared' : ''} ${idx === 0 ? 'selected' : ''} ${hasCueInTopSources ? 'has-cue' : ''}`;
         badge.innerHTML = `${headKey} <span class="kurtosis">${kurtosis.toFixed(1)}</span>`;
         badge.dataset.layer = layer;
         badge.dataset.head = head;
@@ -889,10 +952,13 @@ function renderStripes(container, stripes, condition) {
         
         if (stripe.isCue) cueInStripes = true;
         
+        // Build class string properly (trim to avoid extra spaces)
+        const classStr = cueClass ? `stripe-text ${cueClass}` : 'stripe-text';
+        
         html += `
             <li>
                 <span class="stripe-idx">[${stripe.label}]</span>
-                <span class="stripe-text ${cueClass}">
+                <span class="${classStr}">
                     ${escapeHtml(stripe.sentence.slice(0, 100))}${stripe.sentence.length > 100 ? '...' : ''}
                     ${cueMarker}
                 </span>

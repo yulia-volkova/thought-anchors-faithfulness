@@ -64,11 +64,20 @@
             </div>
 
             <div class="control-group">
-                <label for="heads-source">Receiver Heads From</label>
+                <label for="heads-source">
+                    Receiver Heads From
+                    <span class="info-icon" id="heads-source-info" data-tooltip="heads-source-tooltip">ℹ️</span>
+                </label>
                 <select id="heads-source">
                     <option value="aggregate">All in Category</option>
                     <option value="single">This PI Only</option>
                 </select>
+                <div id="heads-source-tooltip" class="control-tooltip hidden">
+                    <p><strong>All in Category:</strong> Receiver heads are calculated using kurtosis measure calculated across all rollouts from all problem IDs (PIs) in the selected category. If only one category (faithful or unfaithful) is selected, kurtosis is computed across all rollouts from that category.</p>
+                    <p style="margin-top: 0.5rem;"><strong>Note on combining categories:</strong> If both faithful and unfaithful categories are selected, kurtosis would be computed across all rollouts from both categories combined. However, this may not be statistically appropriate since faithful and unfaithful problems may exhibit systematically different attention patterns. The original analysis keeps them separate for comparison.</p>
+                    <p style="margin-top: 0.5rem;"><strong>This PI Only:</strong> Receiver heads are calculated only across rollouts of this specific problem ID (PI).</p>
+                    <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Note: Bogdan et al. calculate receiver heads across the whole dataset of math rollouts (<a href="https://huggingface.co/datasets/uzaymacar/math-rollouts" target="_blank">link</a>).</p>
+                </div>
             </div>
 
             <div class="control-group">
@@ -139,6 +148,7 @@
                 <div class="heads-comparison">
                     <div class="heads-column">
                         <h3>Cued Rollout</h3>
+                        <p class="column-note">• Dot indicates cue mention among the top source sentences for the selected layer-head pair</p>
                         <div id="cued-heads" class="heads-list">
                             <!-- Populated dynamically -->
                         </div>
@@ -286,11 +296,13 @@
                 further work is needed to determine if systematic differences exist.
             </p>
             <p class="conclusion-text" style="margin-top: 0.75rem; font-style: normal; font-size: 0.95rem;">
-                <strong>Future directions:</strong> (1) Test on domains where post-hoc rationalization is common,
+                <strong>Future directions:</strong><br>
+                (1) Test on domains where post-hoc rationalization is common,
                 such as the hiring-scenario dataset (Karvonen & Marks, 2025), where models explain choices with
-                acceptable narratives that may not reflect true decision factors.
+                acceptable narratives that may not reflect true decision factors.<br>
                 (2) Combine with Verbalization Fine-Tuning (Turpin et al., 2025) — if VFT increases cue admission,
-                do receiver heads shift to anchor on the verbalized cue sentence post-training?
+                do receiver heads shift to anchor on the verbalized cue sentence post-training?<br>
+                (2.1) Try model diffing between VFT model and original.<br>
                 Such experiments could validate whether attention markers reliably track cue-following behavior.
             </p>
         </section>
