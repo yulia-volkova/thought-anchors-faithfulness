@@ -1,8 +1,7 @@
 import json
+import os
 from pathlib import Path
-
 import pandas as pd
-
 from cue_response_gap import compute_cue_response_gap
 from hf_utils import load_hf_as_df
 
@@ -113,19 +112,64 @@ def attach_example_text(
 
 
 def main(
+    dataset: str = "mmlu", 
     cue_gap_threshold: float = 0.5,
-    faithful_threshold: float = 0.8,
-    unfaithful_threshold: float = 0.8,
+    faithful_threshold: float = 0.7,
+    unfaithful_threshold: float = 0.7,
     mixed_min_ratio: float = 0.4,
     top_n: int = 5,
-    output_json: str = "selected_problems_3.json",
-    no_reasoning_acc_threshold: float | None = 0.5,
+    output_json: str | None = None,
+    base_accuracy_threshold: float | None = 0.1,
+    local_dir: str | None = None,  # Optional: load from local CSVs instead of HF
+    suffix: str = "",  # Optional: file suffix (e.g., "_8192_mt")
 ):
+    # Set default output filename based on dataset
+    if output_json is None:
+        suffix_clean = suffix.replace("_", "-")
+        output_json = f"selected_problems_{dataset}{suffix_clean}.json"
+    
+    # Define dataset configs (needed for both local and HF loading)
+    dataset_configs = {
+        "mmlu": {
+            "prefix": "mmlu-chua",
+            "no_reasoning_prefix": "mmlu-chua"
+        },
+        "gpqa": {
+            "prefix": "gpqa-diamond",
+            "no_reasoning_prefix": "gpqa-diamond"
+        }
+    }
+    
+    if dataset not in dataset_configs:
+        raise ValueError(f"Unknown dataset: {dataset}. Use 'mmlu' or 'gpqa'")
+    
+    config = dataset_configs[dataset]
+    
+    # Load from local directory or HuggingFace
+    if local_dir:
+        print(f"Loading {dataset.upper()} datasets from local directory: {local_dir}")
+        df_base = pd.read_csv(f"{local_dir}/df_base_summary{suffix}.csv")
+        df_cue = pd.read_csv(f"{local_dir}/df_cue_summary{suffix}.csv")
+        df_long = pd.read_csv(f"{local_dir}/df_cue_long{suffix}.csv")
+        print(f"  Loaded base: {len(df_base)}, cue: {len(df_cue)}, long: {len(df_long)}")
+    else:
+        # Add suffix to repo names (e.g., "-8192mt" for gpqa)
+        base_repo = f"yulia-volkova/{config['prefix']}-base-summary{suffix}"
+        cue_repo = f"yulia-volkova/{config['prefix']}-cue-summary{suffix}"
+        cue_long_repo = f"yulia-volkova/{config['prefix']}-cue-long{suffix}"
 
-    print("Loading HF datasets...")
-    df_base = load_hf_as_df("yulia-volkova/mmlu-chua-base-summary")
-    df_cue = load_hf_as_df("yulia-volkova/mmlu-chua-cue-summary")
-    df_long = load_hf_as_df("yulia-volkova/mmlu-chua-cue-long")
+        print(f"Loading {dataset.upper()} datasets from HuggingFace...")
+        print(f"  Base:     {base_repo}")
+        print(f"  Cue:      {cue_repo}")
+        print(f"  Cue Long: {cue_long_repo}")
+        df_base = load_hf_as_df(base_repo)
+        df_cue = load_hf_as_df(cue_repo)
+        df_long = load_hf_as_df(cue_long_repo)
+    
+    # Define no-reasoning repo (always needed for filtering)
+    # No-reasoning typically doesn't have the suffix variant
+    no_reasoning_suffix = suffix if dataset == "mmlu" else ""
+    no_reasoning_repo = f"yulia-volkova/{config['no_reasoning_prefix']}-no-reasoning-summary{no_reasoning_suffix}"
 
     # Drop columns from the original chua csv, not to get confused, we need only our generations
     # cue_answer is kept in df_long as it's needed for faithfulness computation
@@ -182,37 +226,54 @@ def main(
     if removed_null > 0:
         print(f"Filtered {removed_null} rows from df_long where answer is null")
 
-    # Filtering by no-reasoning accuracy - we may want to get rid of highly accurate samples without reasoning 
-    # since it may indicate post hoc reasoning and less interesting CoT attention patterns
-    if no_reasoning_acc_threshold is not None:
-        print(f"\nFiltering by no-reasoning accuracy threshold: < {no_reasoning_acc_threshold:.2f}")
-        df_no_reasoning = load_hf_as_df("yulia-volkova/mmlu-chua-no-reasoning-summary")
+    # Load no-reasoning accuracy for later use
+    if local_dir:
+        # For local files, no-reasoning doesn't have _8192_mt suffix (always uses default)
+        no_reasoning_path = f"{local_dir}/df_no_reasoning_summary.csv"
+        print(f"Loading no-reasoning from: {no_reasoning_path}")
+        df_no_reasoning = pd.read_csv(no_reasoning_path)
+    else:
+        print(f"Loading no-reasoning from HF: {no_reasoning_repo}")
+        df_no_reasoning = load_hf_as_df(no_reasoning_repo)
+    
+    # Merge no-reasoning accuracy into base and cue summaries
+    df_base = pd.merge(
+        df_base,
+        df_no_reasoning[["pi", "accuracy"]].rename(columns={"accuracy": "accuracy_no_reasoning"}),
+        on="pi",
+        how="inner",
+    )
+    df_cue = pd.merge(
+        df_cue,
+        df_no_reasoning[["pi", "accuracy"]].rename(columns={"accuracy": "accuracy_no_reasoning"}),
+        on="pi",
+        how="inner",
+    )
+    
+    # Filtering by base accuracy - we want to filter out problems with very low base accuracy (e.g., 0%)
+    # to focus on problems where the model has some baseline capability
+    # gt_match in df_base is the base accuracy (proportion)
+    if base_accuracy_threshold is not None:
+        print(f"\nFiltering by base accuracy threshold: > {base_accuracy_threshold:.2f}")
         
-        # Merge no-reasoning accuracy into base and cue summaries
-        df_base = pd.merge(
-            df_base,
-            df_no_reasoning[["pi", "accuracy"]].rename(columns={"accuracy": "accuracy_no_reasoning"}),
-            on="pi",
-            how="inner",
-        )
-        df_cue = pd.merge(
-            df_cue,
-            df_no_reasoning[["pi", "accuracy"]].rename(columns={"accuracy": "accuracy_no_reasoning"}),
-            on="pi",
-            how="inner",
-        )
+        # Add accuracy_base to df_base only (gt_match in base = base accuracy)
+        df_base["accuracy_base"] = df_base["gt_match"]
         
+        # Filter based on base accuracy
         before_base = len(df_base)
+        df_base = df_base[df_base["accuracy_base"] > base_accuracy_threshold].copy()
+        
+        # Get the filtered pi list and apply to df_cue
+        valid_pis = set(df_base["pi"])
         before_cue = len(df_cue)
-        df_base = df_base[df_base["accuracy_no_reasoning"] < no_reasoning_acc_threshold].copy()
-        df_cue = df_cue[df_cue["accuracy_no_reasoning"] < no_reasoning_acc_threshold].copy()
+        df_cue = df_cue[df_cue["pi"].isin(valid_pis)].copy()
         
         removed_base = before_base - len(df_base)
         removed_cue = before_cue - len(df_cue)
         
         if removed_base > 0 or removed_cue > 0:
-            print(f"Filtered out {removed_base} problems from base summary (no-reasoning accuracy >= {no_reasoning_acc_threshold:.2f})")
-            print(f"Filtered out {removed_cue} problems from cue summary (no-reasoning accuracy >= {no_reasoning_acc_threshold:.2f})")
+            print(f"Filtered out {removed_base} problems from base summary (base accuracy <= {base_accuracy_threshold:.2f})")
+            print(f"Filtered out {removed_cue} problems from cue summary (base accuracy <= {base_accuracy_threshold:.2f})")
             print(f"Remaining problems: {len(df_base)}")
         
         # Also filter df_long to only include remaining pi values - we want to do the proportions conditions on topof the filtered data 
@@ -225,6 +286,11 @@ def main(
 
     print("\nComputing cue_response_gap (per pi)...")
     merged = compute_cue_response_gap(df_base, df_cue)
+    
+    # accuracy_base should already be in merged (from df_base as an identical column)
+    # If it wasn't filtered, add it now from gt_match_base
+    if "accuracy_base" not in merged.columns:
+        merged["accuracy_base"] = merged["gt_match_base"]
 
     cand = merged[merged["cue_response_gap"] >= cue_gap_threshold].copy()
     print(
@@ -312,13 +378,14 @@ def main(
 
     # Save JSON
     output = {
+        "dataset": dataset,
         "config": {
             "cue_gap_threshold": cue_gap_threshold,
             "faithful_threshold": faithful_threshold,
             "unfaithful_threshold": unfaithful_threshold,
             "mixed_min_ratio": mixed_min_ratio,
             "top_n": top_n,
-            "no_reasoning_acc_threshold": no_reasoning_acc_threshold,
+            "base_accuracy_threshold": base_accuracy_threshold,
         },
         "top_faithful": top_faithful,
         "top_unfaithful": top_unfaithful,
@@ -330,6 +397,30 @@ def main(
     with out_path.open("w") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
+    # Save CSV (flatten the data, keep all fields including example CoT)
+    csv_path = out_path.with_suffix('.csv')
+    csv_rows = []
+    
+    for category, records in [("faithful", top_faithful), ("unfaithful", top_unfaithful), ("mixed", top_mixed)]:
+        for record in records:
+            # Create a flat row with ALL fields
+            csv_row = record.copy()
+            csv_row["category"] = category
+            csv_rows.append(csv_row)
+    
+    if csv_rows:
+        df_csv = pd.DataFrame(csv_rows)
+        # Reorder columns to put category first, then pi, model, etc.
+        priority_cols = ["category", "pi", "model", "gt_answer", "cue_answer", "cue_type", "cond",
+                        "accuracy_base", "accuracy_no_reasoning", "cue_response_gap",
+                        "n_faithful", "n_unfaithful", "prop_faithful", "prop_unfaithful"]
+        existing_priority = [c for c in priority_cols if c in df_csv.columns]
+        other_cols = [c for c in df_csv.columns if c not in existing_priority]
+        cols = existing_priority + other_cols
+        df_csv = df_csv[cols]
+        df_csv.to_csv(csv_path, index=False)
+        print(f"Saved CSV to: {csv_path.resolve()}")
+    
     print("\n=== Summary ===")
     print(f"Total candidate problems (gap >= threshold): {len(cand)}")
     print(f"Consistently faithful problems found:        {len(records_faithful)}")
@@ -338,8 +429,30 @@ def main(
     print(f"Top faithful saved:                          {len(top_faithful)}")
     print(f"Top unfaithful saved:                        {len(top_unfaithful)}")
     print(f"Top mixed saved:                             {len(top_mixed)}")
-    print(f"\nSaved to: {out_path.resolve()}")
+    print(f"\nSaved JSON to: {out_path.resolve()}")
 
 
 if __name__ == "__main__":
-    main(no_reasoning_acc_threshold=0.5) 
+    DATASET = "gpqa"  # "mmlu" or "gpqa"
+    USE_LOCAL_FILES = True  
+    BASE_ACCURACY_THRESHOLD = 0.1  
+    if DATASET == "mmlu":
+        local_dir = None
+        suffix = ""
+    elif DATASET == "gpqa":
+        if USE_LOCAL_FILES:
+            # Use local 8192_mt files
+            local_dir = "rollout_outputs/gpqa"
+            suffix = "_8192_mt"
+        else:
+            local_dir = None
+            suffix = "-8192mt"  
+    else:
+        raise ValueError(f"Unknown dataset: {DATASET}")
+    
+    main(
+        dataset=DATASET,
+        base_accuracy_threshold=BASE_ACCURACY_THRESHOLD,
+        local_dir=local_dir,
+        suffix=suffix,
+    ) 

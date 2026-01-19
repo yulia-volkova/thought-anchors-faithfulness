@@ -9,6 +9,78 @@ from transformers import AutoTokenizer
 import random
 from datasets import load_dataset
 
+
+def split_prompt_into_chunks(prompt_text: str) -> List[str]:
+    """
+    Split the prompt into meaningful chunks:
+    - Cue sentence (if present): "The following was answered as..."
+    - Question text (everything up to Answer choices)
+    - Answer choices as one chunk
+    - Instructions as one chunk (including <think> tag)
+    
+    Handles both:
+    - MMLU format: "Answer choices:\n(A) ..."
+    - GPQA format: "A. ...\nB. ..." (no "Answer choices:" prefix)
+    """
+    chunks = []
+    text = prompt_text.strip()
+    
+    # Remove "user: " prefix if present
+    if text.lower().startswith("user:"):
+        text = text[5:].strip()
+    
+    # 1. Extract cue sentence if present (ends with "What do you think?")
+    cue_match = re.search(r'^(.+?What do you think\?)\s*\n', text, re.IGNORECASE)
+    if cue_match:
+        chunks.append(cue_match.group(1).strip())
+        text = text[cue_match.end():].strip()
+    
+    # 2. Extract question (everything before answer choices)
+    # Try MMLU format first: "Answer choices:"
+    answer_choices_match = re.search(r'\nAnswer choices:', text)
+    if answer_choices_match:
+        question = text[:answer_choices_match.start()].strip()
+        if question:
+            chunks.append(question)
+        text = text[answer_choices_match.start():].strip()
+    else:
+        # Try GPQA format: standalone "\nA. " (answer choice A at start of line)
+        gpqa_choices_match = re.search(r'\n\s*A\.\s+', text)
+        if gpqa_choices_match:
+            question = text[:gpqa_choices_match.start()].strip()
+            if question:
+                chunks.append(question)
+            text = text[gpqa_choices_match.start():].strip()
+    
+    # 3. Extract answer choices block (to instructions)
+    instruction_match = re.search(r'\nPlease think step by step', text)
+    if instruction_match:
+        choices = text[:instruction_match.start()].strip()
+        if choices:
+            chunks.append(choices)
+        text = text[instruction_match.start():].strip()
+    
+    # 4. Add remaining text as instructions (including <think> tag)
+    if text.strip():
+        chunks.append(text.strip())
+    
+    # Fallback: if no chunks were created, treat whole prompt as one chunk
+    if not chunks:
+        chunks = [prompt_text.strip()]
+    
+    return chunks
+
+
+def _normalize_for_matching(text: str) -> str:
+    """Normalize text for fuzzy matching - keep only alphanumeric and key punctuation."""
+    # Collapse whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+def _extract_alphanumeric(text: str) -> str:
+    """Extract only alphanumeric characters for very fuzzy matching."""
+    return re.sub(r'[^a-zA-Z0-9]', '', text).lower()
+
 def get_chunk_ranges(full_text: str, chunks: List[str]) -> List[Tuple[int, int]]:    
     # Get character ranges for each chunk in the full text
     chunk_ranges = []
@@ -16,7 +88,7 @@ def get_chunk_ranges(full_text: str, chunks: List[str]) -> List[Tuple[int, int]]
     
     for chunk in chunks:
         # Normalize the chunk for comparison (preserve length but standardize whitespace)
-        normalized_chunk = re.sub(r'\s+', ' ', chunk).strip()
+        normalized_chunk = _normalize_for_matching(chunk)
         
         # Try to find the chunk in the full text
         chunk_start = -1
@@ -26,34 +98,40 @@ def get_chunk_ranges(full_text: str, chunks: List[str]) -> List[Tuple[int, int]]
         if exact_match_pos != -1:
             chunk_start = exact_match_pos
         else:
-            # If exact match fails, try with normalized text
-            chunk_words = normalized_chunk.split()
-            
-            # Search for the sequence of words, allowing for different whitespace
-            for i in range(current_pos, len(full_text) - len(normalized_chunk)):
-                # Check if this could be the start of our chunk
-                text_window = full_text[i:i+len(normalized_chunk) + 20]  # Add some buffer
-                normalized_window = re.sub(r'\s+', ' ', text_window).strip()
+            # Strategy 1: Whitespace-normalized matching with larger window
+            search_end = min(len(full_text), current_pos + len(full_text) - current_pos)
+            for i in range(current_pos, search_end - min(len(normalized_chunk), 20)):
+                text_window = full_text[i:i+len(normalized_chunk) + 50]
+                normalized_window = _normalize_for_matching(text_window)
                 
                 if normalized_window.startswith(normalized_chunk):
                     chunk_start = i
                     break
-                
-                # If not found with window, try word by word matching
-                if i == current_pos + 100:  # Limit detailed search to avoid performance issues
-                    for j in range(current_pos, len(full_text) - 10):
-                        # Try to match first word
-                        if re.match(r'\b' + re.escape(chunk_words[0]) + r'\b', full_text[j:j+len(chunk_words[0])+5]):
-                            # Check if subsequent words match
-                            match_text = full_text[j:j+len(normalized_chunk)+30]
-                            normalized_match = re.sub(r'\s+', ' ', match_text).strip()
-                            if normalized_match.startswith(normalized_chunk):
-                                chunk_start = j
-                                break
-                    break
+            
+            # Strategy 2: Match first 20 chars (handles truncation/modifications)
+            if chunk_start == -1 and len(normalized_chunk) > 20:
+                prefix = normalized_chunk[:20]
+                for i in range(current_pos, search_end - 20):
+                    text_window = full_text[i:i+30]
+                    normalized_window = _normalize_for_matching(text_window)
+                    if normalized_window.startswith(prefix):
+                        chunk_start = i
+                        break
+            
+            # Strategy 3: Alphanumeric-only fuzzy match (handles Unicode issues)
+            if chunk_start == -1:
+                chunk_alphanum = _extract_alphanumeric(chunk[:30])  # First 30 chars
+                if len(chunk_alphanum) >= 10:  # Need enough chars to match
+                    for i in range(current_pos, min(current_pos + 5000, search_end - 30)):
+                        window_alphanum = _extract_alphanumeric(full_text[i:i+50])
+                        if window_alphanum.startswith(chunk_alphanum[:15]):
+                            chunk_start = i
+                            break
         
         if chunk_start == -1:
-            print(f"Warning: Chunk not found in full text: {chunk[:50]}...")
+            # Only warn if we really can't find it (suppress for very short chunks)
+            if len(chunk) > 10:
+                print(f"Warning: Chunk not found in full text: {chunk[:50]}...")
             continue
             
         # For the end position, find where the content of the chunk ends in the full text

@@ -18,8 +18,7 @@ CONFIG = {
     "output_dir": "rollout_outputs/mmlu",
     "output_suffix": "",
     
-    "hf_base_repo_id": "yulia-volkova/mmlu-chua-rollouts",
-    
+ 
     # Pipeline defaults
     "run_reasoning": True,
     "run_no_reasoning": True,

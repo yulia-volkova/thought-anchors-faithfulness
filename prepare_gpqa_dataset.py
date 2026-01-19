@@ -25,7 +25,7 @@ from hf_utils import load_hf_as_df, push_df_to_hf
 from run_no_reasoning import NO_REASONING_SUFFIX
 
 
-IDAVIDREIN_CSV_PATH = "gpqa_diamond.csv"  
+IDAVIDREIN_CSV_PATH = "data/gpqa_diamond.csv"  
 OUTPUT_DIR = "prepared_datasets"
 OUTPUT_FILENAME = "gpqa_diamond_prepared.csv"
 
