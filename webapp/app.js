@@ -680,7 +680,7 @@ function updateAttentionMatrix(condition) {
         const profMentionEl = document.getElementById('cued-prof-mention');
         const config = attnData.config || {};
         const mentionRate = config.cued_professor_mention_proportion || 0;
-        profMentionEl.textContent = `Prof: ${(mentionRate * 100).toFixed(0)}%`;
+        profMentionEl.textContent = `Faithfulness rate: ${(mentionRate * 100).toFixed(0)}%`;
     }
 
     // In reasoning mode, only show reasoning sentences (no prompt)
@@ -1003,6 +1003,20 @@ function toggleQuestionExpand() {
     }
 }
 
+// Toggle graph visibility
+function toggleGraph(graphId) {
+    const graph = document.getElementById(graphId);
+    const btn = graph.previousElementSibling;
+    
+    if (graph.classList.contains('hidden')) {
+        graph.classList.remove('hidden');
+        btn.textContent = 'Hide graph ▲';
+    } else {
+        graph.classList.add('hidden');
+        btn.textContent = 'Show graph ▼';
+    }
+}
+
 // Export for debugging
 window.DEBUG = {
     getProblem,
@@ -1023,4 +1037,5 @@ function toggleSidenote(id) {
 window.toggleAppendix = toggleAppendix;
 window.toggleQuestionExpand = toggleQuestionExpand;
 window.toggleSidenote = toggleSidenote;
+window.toggleGraph = toggleGraph;
 

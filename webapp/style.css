@@ -71,7 +71,7 @@ body {
 
 /* Container */
 .container {
-    max-width: 1400px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: var(--spacing-xl);
 }
@@ -409,6 +409,12 @@ section h2 {
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-xl);
     margin-bottom: var(--spacing-lg);
+    align-items: start;
+}
+
+.heads-column {
+    display: flex;
+    flex-direction: column;
 }
 
 .heads-column h3 {
@@ -429,6 +435,8 @@ section h2 {
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-sm);
+    align-items: flex-start;
+    justify-content: flex-start;
 }
 
 .head-badge {
@@ -445,6 +453,8 @@ section h2 {
     transition: all 0.2s;
     position: relative;
     color: var(--text-primary);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .head-badge:hover {
@@ -956,6 +966,35 @@ section h2 {
     font-size: 0.9rem;
     line-height: 1.5;
     margin: 0;
+}
+
+/* Expandable Graph Sections */
+.expand-graph-btn {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--accent-cued);
+    background: transparent;
+    border: 1px solid var(--accent-cued);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.expand-graph-btn:hover {
+    background: var(--accent-cued-light);
+}
+
+.correlation-graph {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.correlation-graph.hidden {
+    display: none;
 }
 
 /* Settings Table */
