@@ -10,11 +10,11 @@ import numpy as np
 from pathlib import Path
 
 # Paths - MMLU
-MMLU_CSV_PATH = "../selected_rollouts_3.csv"
+MMLU_CSV_PATH = "../data/selected_rollouts_mmlu.csv"
 MMLU_ATTENTION_DIR = "../final/mmlu"
 
 # Paths - GPQA
-GPQA_SELECTED_PATH = "../selected_problems_gpqa-8192-mt.csv"
+GPQA_SELECTED_PATH = "../data/selected_problems_gpqa-8192-mt.csv"
 GPQA_CUE_LONG_PATH = "../rollout_outputs/gpqa/df_cue_long_8192_mt.csv"
 GPQA_BASE_LONG_PATH = "../rollout_outputs/gpqa/df_base_long_8192_mt.csv"
 GPQA_CUE_SUMMARY_PATH = "../rollout_outputs/gpqa/df_cue_summary_8192_mt.csv"
@@ -323,12 +323,22 @@ def load_mmlu_attention_data():
         
         cued_attention_summary = None
         uncued_attention_summary = None
+        cued_attention_reasoning = None
+        uncued_attention_reasoning = None
         
+        # Full attention (with prompt)
         if os.path.exists(cued_attention_path) and cued_rollout:
             cued_attention_summary = summarize_attention(cued_attention_path, cued_rollout, top_heads['cued'])
         
         if os.path.exists(uncued_attention_path) and uncued_rollout:
             uncued_attention_summary = summarize_attention(uncued_attention_path, uncued_rollout, top_heads['uncued'])
+        
+        # Reasoning-only attention (without prompt) - uses different top heads
+        if os.path.exists(cued_attention_path) and cued_rollout and 'cued_reasoning' in top_heads:
+            cued_attention_reasoning = summarize_attention(cued_attention_path, cued_rollout, top_heads['cued_reasoning'])
+        
+        if os.path.exists(uncued_attention_path) and uncued_rollout and 'uncued_reasoning' in top_heads:
+            uncued_attention_reasoning = summarize_attention(uncued_attention_path, uncued_rollout, top_heads['uncued_reasoning'])
         
         # Check for faithful vs unfaithful comparison data
         fvu_dir = os.path.join(folder_path, 'faithful_vs_unfaithful')
@@ -336,6 +346,8 @@ def load_mmlu_attention_data():
         unfaithful_rollout = None
         faithful_attention_summary = None
         unfaithful_attention_summary = None
+        faithful_attention_reasoning = None
+        unfaithful_attention_reasoning = None
         has_faithful_vs_unfaithful = config.get('has_faithful_vs_unfaithful', False)
         
         if has_faithful_vs_unfaithful and os.path.exists(fvu_dir):
@@ -354,11 +366,19 @@ def load_mmlu_attention_data():
             faithful_attn_path = os.path.join(fvu_dir, 'faithful', 'attention.npz')
             unfaithful_attn_path = os.path.join(fvu_dir, 'unfaithful', 'attention.npz')
             
+            # Full attention (with prompt)
             if os.path.exists(faithful_attn_path) and faithful_rollout:
                 faithful_attention_summary = summarize_attention(faithful_attn_path, faithful_rollout, top_heads['cued'])
             
             if os.path.exists(unfaithful_attn_path) and unfaithful_rollout:
                 unfaithful_attention_summary = summarize_attention(unfaithful_attn_path, unfaithful_rollout, top_heads['cued'])
+            
+            # Reasoning-only attention (without prompt)
+            if os.path.exists(faithful_attn_path) and faithful_rollout and 'cued_reasoning' in top_heads:
+                faithful_attention_reasoning = summarize_attention(faithful_attn_path, faithful_rollout, top_heads['cued_reasoning'])
+            
+            if os.path.exists(unfaithful_attn_path) and unfaithful_rollout and 'cued_reasoning' in top_heads:
+                unfaithful_attention_reasoning = summarize_attention(unfaithful_attn_path, unfaithful_rollout, top_heads['cued_reasoning'])
         
         # Check if consistently faithful or unfaithful
         consistently_faithful = config.get('consistently_faithful', False)
@@ -376,8 +396,12 @@ def load_mmlu_attention_data():
                 'sentences': uncued_rollout['sentences'] if uncued_rollout else [],
                 'prompt_len': uncued_rollout.get('prompt_len', 0) if uncued_rollout else 0,
             },
+            # Full attention (with prompt)
             'cued_attention': cued_attention_summary,
             'uncued_attention': uncued_attention_summary,
+            # Reasoning-only attention (without prompt)
+            'cued_attention_reasoning': cued_attention_reasoning,
+            'uncued_attention_reasoning': uncued_attention_reasoning,
             # Faithful vs Unfaithful comparison
             'has_faithful_vs_unfaithful': has_faithful_vs_unfaithful,
             'consistently_faithful': consistently_faithful,
@@ -391,8 +415,12 @@ def load_mmlu_attention_data():
                 'sentences': unfaithful_rollout['sentences'] if unfaithful_rollout else [],
                 'prompt_len': unfaithful_rollout.get('prompt_len', 0) if unfaithful_rollout else 0,
             } if unfaithful_rollout else None,
+            # Full attention (with prompt) for FvU
             'faithful_attention': faithful_attention_summary,
             'unfaithful_attention': unfaithful_attention_summary,
+            # Reasoning-only attention for FvU
+            'faithful_attention_reasoning': faithful_attention_reasoning,
+            'unfaithful_attention_reasoning': unfaithful_attention_reasoning,
         }
         
         fvu_status = ""
@@ -466,12 +494,22 @@ def load_gpqa_attention_data():
         
         cued_attention_summary = None
         uncued_attention_summary = None
+        cued_attention_reasoning = None
+        uncued_attention_reasoning = None
         
+        # Full attention (with prompt)
         if os.path.exists(cued_attention_path) and cued_rollout:
             cued_attention_summary = summarize_attention(cued_attention_path, cued_rollout, top_heads['cued'])
         
         if os.path.exists(uncued_attention_path) and uncued_rollout:
             uncued_attention_summary = summarize_attention(uncued_attention_path, uncued_rollout, top_heads['uncued'])
+        
+        # Reasoning-only attention (without prompt) - uses different top heads
+        if os.path.exists(cued_attention_path) and cued_rollout and 'cued_reasoning' in top_heads:
+            cued_attention_reasoning = summarize_attention(cued_attention_path, cued_rollout, top_heads['cued_reasoning'])
+        
+        if os.path.exists(uncued_attention_path) and uncued_rollout and 'uncued_reasoning' in top_heads:
+            uncued_attention_reasoning = summarize_attention(uncued_attention_path, uncued_rollout, top_heads['uncued_reasoning'])
         
         # Check for faithful vs unfaithful comparison data
         fvu_dir = os.path.join(folder_path, 'faithful_vs_unfaithful')
@@ -479,6 +517,8 @@ def load_gpqa_attention_data():
         unfaithful_rollout = None
         faithful_attention_summary = None
         unfaithful_attention_summary = None
+        faithful_attention_reasoning = None
+        unfaithful_attention_reasoning = None
         has_faithful_vs_unfaithful = config.get('has_faithful_vs_unfaithful', False)
         
         if has_faithful_vs_unfaithful and os.path.exists(fvu_dir):
@@ -497,11 +537,19 @@ def load_gpqa_attention_data():
             faithful_attn_path = os.path.join(fvu_dir, 'faithful', 'attention.npz')
             unfaithful_attn_path = os.path.join(fvu_dir, 'unfaithful', 'attention.npz')
             
+            # Full attention (with prompt)
             if os.path.exists(faithful_attn_path) and faithful_rollout:
                 faithful_attention_summary = summarize_attention(faithful_attn_path, faithful_rollout, top_heads['cued'])
             
             if os.path.exists(unfaithful_attn_path) and unfaithful_rollout:
                 unfaithful_attention_summary = summarize_attention(unfaithful_attn_path, unfaithful_rollout, top_heads['cued'])
+            
+            # Reasoning-only attention (without prompt)
+            if os.path.exists(faithful_attn_path) and faithful_rollout and 'cued_reasoning' in top_heads:
+                faithful_attention_reasoning = summarize_attention(faithful_attn_path, faithful_rollout, top_heads['cued_reasoning'])
+            
+            if os.path.exists(unfaithful_attn_path) and unfaithful_rollout and 'cued_reasoning' in top_heads:
+                unfaithful_attention_reasoning = summarize_attention(unfaithful_attn_path, unfaithful_rollout, top_heads['cued_reasoning'])
         
         # Check if consistently faithful or unfaithful
         consistently_faithful = config.get('consistently_faithful', False)
@@ -519,8 +567,12 @@ def load_gpqa_attention_data():
                 'sentences': uncued_rollout['sentences'] if uncued_rollout else [],
                 'prompt_len': uncued_rollout.get('prompt_len', 0) if uncued_rollout else 0,
             },
+            # Full attention (with prompt)
             'cued_attention': cued_attention_summary,
             'uncued_attention': uncued_attention_summary,
+            # Reasoning-only attention (without prompt)
+            'cued_attention_reasoning': cued_attention_reasoning,
+            'uncued_attention_reasoning': uncued_attention_reasoning,
             # Faithful vs Unfaithful comparison
             'has_faithful_vs_unfaithful': has_faithful_vs_unfaithful,
             'consistently_faithful': consistently_faithful,
@@ -534,8 +586,12 @@ def load_gpqa_attention_data():
                 'sentences': unfaithful_rollout['sentences'] if unfaithful_rollout else [],
                 'prompt_len': unfaithful_rollout.get('prompt_len', 0) if unfaithful_rollout else 0,
             } if unfaithful_rollout else None,
+            # Full attention (with prompt) for FvU
             'faithful_attention': faithful_attention_summary,
             'unfaithful_attention': unfaithful_attention_summary,
+            # Reasoning-only attention for FvU
+            'faithful_attention_reasoning': faithful_attention_reasoning,
+            'unfaithful_attention_reasoning': unfaithful_attention_reasoning,
         }
         
         fvu_status = ""

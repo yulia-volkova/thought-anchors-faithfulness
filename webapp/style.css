@@ -857,8 +857,9 @@ section h2 {
 /* Findings Grid */
 .findings-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--spacing-md);
+    align-items: stretch;
 }
 
 .finding-card {
@@ -866,12 +867,14 @@ section h2 {
     background: var(--bg-tertiary);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
 }
 
 .finding-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: var(--spacing-xs);
     margin-bottom: var(--spacing-sm);
     padding-bottom: var(--spacing-sm);
     border-bottom: 1px solid var(--border-color);
@@ -879,15 +882,17 @@ section h2 {
 
 .finding-metric {
     font-family: var(--font-mono);
-    font-size: 1.1rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: var(--accent-cued);
+    white-space: nowrap;
 }
 
 .finding-pval {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
+    white-space: nowrap;
 }
 
 .finding-card p {
@@ -1037,4 +1042,147 @@ section h2 {
 
 .unfaithful-panel .panel-header h3 {
     color: #991b1b;
+}
+
+/* ==============================================
+   Collapsible Sidenotes
+   ============================================== */
+
+.sidenote-container {
+    margin-top: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.sidenote-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.sidenote-header:hover {
+    background: var(--bg-primary);
+}
+
+.sidenote-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.sidenote-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.sidenote-toggle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.sidenote-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.sidenote-body {
+    padding: 0 var(--spacing-md) var(--spacing-md) var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+    max-height: 2000px;
+    opacity: 1;
+}
+
+.sidenote-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: none;
+}
+
+.sidenote-intro {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    padding-top: var(--spacing-md);
+}
+
+.sidenote-intro a {
+    color: var(--accent-cued);
+    text-decoration: none;
+}
+
+.sidenote-intro a:hover {
+    text-decoration: underline;
+}
+
+.diff-item {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent-uncued);
+}
+
+.diff-item h5 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.diff-item > p {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-sm);
+}
+
+.diff-item ul {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.diff-item li {
+    margin-bottom: var(--spacing-xs);
+    line-height: 1.5;
+}
+
+.diff-item code {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: var(--accent-cued);
+}
+
+.sidenote-source {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    border-top: 1px dashed var(--border-color);
+}
+
+.sidenote-source a {
+    color: var(--accent-uncued);
+    text-decoration: none;
+}
+
+.sidenote-source a:hover {
+    text-decoration: underline;
 }

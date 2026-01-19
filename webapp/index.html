@@ -18,7 +18,18 @@
         <!-- Hypothesis -->
         <section class="hypothesis-section">
             <h2>Hypothesis</h2>
-            <p class="hypothesis-text">TBA</p>
+            <p class="hypothesis-text">
+                If white-box attention patterns ("thought anchors") reflect how models use information during reasoning,
+                then <strong>faithful CoT</strong> (where reasoning genuinely influences the answer) should show focused attention
+                to relevant broadcasting sentences, while <strong>unfaithful CoT</strong> (post-hoc rationalization)
+                may exhibit more diffuse attention or anchor to different, potentially misleading cues.
+            </p>
+            <p class="hypothesis-text" style="margin-top: 0.75rem; font-style: normal; font-size: 0.95rem; color: var(--text-secondary);">
+                This work replicates and extends <a href="https://arxiv.org/abs/2506.19143" target="_blank" style="color: var(--accent-cued);">Bogdan et al. (2025) "Thought Anchors"</a>
+                to test whether receiver heads and vertical stripe patterns differ between faithful and unfaithful chains.
+                If attention markers reliably distinguish faithful from unfaithful CoT, this could enable
+                white-box monitoring of reasoning quality in deployed models.
+            </p>
         </section>
 
         <!-- Dataset Selection -->
@@ -32,12 +43,17 @@
             </div>
 
             <div class="control-group">
-                <label for="category-select">Category</label>
-                <select id="category-select">
-                    <option value="faithful">Faithful CoT</option>
-                    <option value="unfaithful">Unfaithful CoT</option>
-                    <option value="mixed">Mixed</option>
-                </select>
+                <label>Category</label>
+                <div class="checkbox-group" id="category-checkboxes">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cat-faithful" value="faithful" checked>
+                        <span>Faithful CoT</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cat-unfaithful" value="unfaithful" checked>
+                        <span>Unfaithful CoT</span>
+                    </label>
+                </div>
             </div>
 
             <div class="control-group">
@@ -54,6 +70,14 @@
                     <option value="single">This PI Only</option>
                 </select>
             </div>
+
+            <div class="control-group">
+                <label for="attention-mode">Attention Mode</label>
+                <select id="attention-mode">
+                    <option value="full" selected>With Prompt</option>
+                    <option value="reasoning">Reasoning Only</option>
+                </select>
+            </div>
         </section>
 
         <!-- TBA Message (for datasets without data) -->
@@ -66,7 +90,7 @@
         <main id="main-content">
             <!-- Question Info -->
             <section class="question-info">
-                <h2>Question Details</h2>
+                <h2>Question Details <span id="pi-category-badge" class="category-badge"></span></h2>
                 <div class="info-grid">
                     <div class="info-card">
                         <span class="info-label">Question Text</span>
@@ -109,7 +133,7 @@
 
             <!-- Receiver Heads -->
             <section class="receiver-heads-section">
-                <h2>Top Receiver Heads</h2>
+                <h2>Top Receiver Heads <span id="heads-category-badge" class="category-badge"></span></h2>
                 <p class="section-desc">Heads with highest kurtosis in attention distribution (indicating focused attention patterns)</p>
                 
                 <div class="heads-comparison">
@@ -135,7 +159,7 @@
 
             <!-- Attention Matrices Side by Side -->
             <section class="attention-section">
-                <h2>Attention Patterns</h2>
+                <h2>Attention Patterns <span id="attention-category-badge" class="category-badge"></span></h2>
                 <p class="section-desc">Click on a head above to view its attention matrix. Hover for values.</p>
                 
                 <div class="attention-comparison">
@@ -255,8 +279,20 @@
 
         <!-- Conclusion -->
         <section class="conclusion-text-section">
-            <h2>Conclusion</h2>
-            <p class="conclusion-text">TBA</p>
+            <h2>Conclusion & Future Directions</h2>
+            <p class="conclusion-text">
+                This visualization explores whether attention patterns can serve as white-box markers for CoT faithfulness.
+                While vertical stripe patterns and receiver heads emerge in both faithful and unfaithful chains,
+                further work is needed to determine if systematic differences exist.
+            </p>
+            <p class="conclusion-text" style="margin-top: 0.75rem; font-style: normal; font-size: 0.95rem;">
+                <strong>Future directions:</strong> (1) Test on domains where post-hoc rationalization is common,
+                such as the hiring-scenario dataset (Karvonen & Marks, 2025), where models explain choices with
+                acceptable narratives that may not reflect true decision factors.
+                (2) Combine with Verbalization Fine-Tuning (Turpin et al., 2025) — if VFT increases cue admission,
+                do receiver heads shift to anchor on the verbalized cue sentence post-training?
+                Such experiments could validate whether attention markers reliably track cue-following behavior.
+            </p>
         </section>
 
         <!-- Appendix: Methodology -->
@@ -418,28 +454,161 @@
 
             <div class="methodology-section">
                 <h3>Model &amp; Generation Settings</h3>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    Two generation stages were used: (1) initial rollouts for faithfulness classification,
+                    (2) attention analysis rollouts for visualization. Both use the same sampling parameters.
+                </p>
                 <table class="settings-table">
                     <tr><td>Model</td><td><code>deepseek-ai/deepseek-r1-distill-qwen-14b</code></td></tr>
-                    <tr><td>Temperature</td><td>0.9</td></tr>
+                    <tr><td>Temperature</td><td>0.7</td></tr>
                     <tr><td>Top-p</td><td>0.95</td></tr>
                     <tr><td>Max tokens (MMLU)</td><td>2048</td></tr>
-                    <tr><td>Max tokens (GPQA)</td><td>8192</td></tr>
-                    <tr><td>Rollouts per condition</td><td>20</td></tr>
+                    <tr><td>Max tokens (GPQA)</td><td>8192 (stage 1) / 2048 (stage 2)</td></tr>
+                    <tr><td>Rollouts per condition</td><td>20 (stage 1) / 5 (stage 2)</td></tr>
                 </table>
+
+                <!-- Collapsible Rollout Generation Notes -->
+                <div class="sidenote-container">
+                    <div class="sidenote-header" onclick="toggleSidenote('rollout-gen')">
+                        <span class="sidenote-icon">⚙️</span>
+                        <span class="sidenote-title">Details: Two-Stage Generation Pipeline</span>
+                        <span id="rollout-gen-toggle" class="sidenote-toggle">▶</span>
+                    </div>
+                    <div id="rollout-gen-content" class="sidenote-body collapsed">
+                        <p class="sidenote-intro">
+                            The analysis uses a two-stage pipeline. Both stages use temperature=0.7, top_p=0.95 (matching the original paper).
+                        </p>
+
+                        <div class="diff-item">
+                            <h5>Stage 1: Initial Rollout Generation</h5>
+                            <p>Script: <code>run_pipeline.py</code> with vLLM</p>
+                            <ul>
+                                <li><strong>Purpose:</strong> Generate large sample for faithfulness classification</li>
+                                <li><strong>Rollouts:</strong> 20 cued + 20 uncued per problem</li>
+                                <li><strong>Used for:</strong> Problem selection, accuracy stats, faithfulness %</li>
+                            </ul>
+                        </div>
+
+                        <div class="diff-item">
+                            <h5>Stage 2: Attention Analysis Generation</h5>
+                            <p>Script: <code>anchors_unified.ipynb</code></p>
+                            <ul>
+                                <li><strong>Purpose:</strong> Generate rollouts with attention weights for visualization</li>
+                                <li><strong>Rollouts:</strong> 5 cued + 5 uncued per selected problem</li>
+                                <li><strong>Used for:</strong> Attention matrices, receiver heads, stripe analysis</li>
+                            </ul>
+                        </div>
+
+                        <div class="diff-item">
+                            <h5>MMLU-Specific</h5>
+                            <p>Config: <code>configs/mmlu_config.py</code></p>
+                            <ul>
+                                <li><strong>Source:</strong> Chua et al. faithfulness dataset (Professor cue)</li>
+                                <li><strong>Max tokens:</strong> 2048 (stage 1), 2048 (stage 2)</li>
+                                <li><strong>Conditions:</strong> <code>itc_failure</code> + <code>itc_success</code></li>
+                            </ul>
+                        </div>
+
+                        <div class="diff-item">
+                            <h5>GPQA-Diamond Specific</h5>
+                            <p>Config: <code>configs/gpqa_config.py</code></p>
+                            <ul>
+                                <li><strong>Source:</strong> <a href="https://huggingface.co/datasets/yulia-volkova/gpqa-diamond-cued-prepared" target="_blank">HuggingFace prepared dataset</a></li>
+                                <li><strong>Max tokens:</strong> 8192 (stage 1), 2048 (stage 2)</li>
+                                <li><strong>Output suffix:</strong> <code>_8192_mt</code></li>
+                            </ul>
+                        </div>
+
+                        <p class="sidenote-source">
+                            Scripts: <code>run_pipeline.py</code>, <code>run_cued_uncued.py</code>, <code>anchors_unified.ipynb</code>
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <div class="methodology-section">
                 <h3>Attention Analysis</h3>
                 <p>
-                    For each problem, we identify <strong>receiver heads</strong> — attention heads with high kurtosis 
-                    in their attention distribution across all rollouts. High kurtosis indicates the head consistently 
+                    For each problem, we identify <strong>receiver heads</strong> — attention heads with high kurtosis
+                    in their attention distribution across all rollouts. High kurtosis indicates the head consistently
                     attends to specific source sentences (creating "vertical stripes" in the attention matrix).
                 </p>
                 <p>
-                    We then compare which source sentences receive the most attention in cued vs. uncued rollouts, 
-                    and whether cue-related sentences (those mentioning the professor/Stanford cue) appear among 
+                    We then compare which source sentences receive the most attention in cued vs. uncued rollouts,
+                    and whether cue-related sentences (those mentioning the professor/Stanford cue) appear among
                     the top-attended sources.
                 </p>
+
+                <!-- Collapsible Implementation Notes -->
+                <div class="sidenote-container">
+                    <div class="sidenote-header" onclick="toggleSidenote('impl-notes')">
+                        <span class="sidenote-icon">📝</span>
+                        <span class="sidenote-title">Implementation Notes: Differences from Original Thought-Anchors</span>
+                        <span id="impl-notes-toggle" class="sidenote-toggle">▶</span>
+                    </div>
+                    <div id="impl-notes-content" class="sidenote-body collapsed">
+                        <p class="sidenote-intro">
+                            Our implementation is adapted from the
+                            <a href="https://github.com/interp-reasoning/thought-anchors" target="_blank">thought-anchors</a>
+                            whitebox analyses. Key differences:
+                        </p>
+
+                        <div class="diff-item">
+                            <h5>1. Averaged Matrix Computation</h5>
+                            <p><code>avg_matrix_by_chunk</code> vs original <code>_compute_averaged_matrix</code></p>
+                            <ul>
+                                <li>We return <code>NaN</code> for empty regions; original returns <code>0</code></li>
+                                <li>Simpler implementation without bounds checking (assumes valid inputs)</li>
+                            </ul>
+                        </div>
+
+                        <div class="diff-item">
+                            <h5>2. Vertical Score Calculation</h5>
+                            <p><code>get_attn_vert_scores</code> vs original <code>get_vertical_scores</code></p>
+                            <ul>
+                                <li><strong>No <code>control_depth</code></strong>: Original has option to rank-normalize attention
+                                    values per row, controlling for the fact that later sentences have more preceding sentences to
+                                    attend to. We use raw attention values.</li>
+                                <li><strong>Added <code>drop_first</code></strong>: We set first/last N scores to NaN to filter
+                                    noisy boundary sentences (default N=1)</li>
+                                <li>Default <code>proximity_ignore=3</code> vs original's <code>20</code></li>
+                            </ul>
+                        </div>
+
+                        <div class="diff-item">
+                            <h5>3. Kurtosis Computation</h5>
+                            <p><code>compute_kurtosis_per_head</code> vs original <code>get_3d_ar_kurtosis</code></p>
+                            <ul>
+                                <li>We use dict <code>{(layer,head): [scores]}</code>; original uses 3D numpy array</li>
+                                <li>We compute kurtosis per rollout then average; original computes directly on axis=2</li>
+                            </ul>
+                        </div>
+
+                        <div class="diff-item">
+                            <h5>4. Head Selection</h5>
+                            <p><code>select_top_heads</code> vs original <code>get_top_k_receiver_heads</code></p>
+                            <ul>
+                                <li><strong>Added <code>min_max_vert</code> filter</strong>: We filter out heads where max vertical
+                                    score is below threshold (default 0.001), removing inactive heads that might have high kurtosis
+                                    by chance</li>
+                            </ul>
+                        </div>
+
+                        <div class="diff-item">
+                            <h5>5. Attention Analysis Generation</h5>
+                            <p>Settings used for generating rollouts shown in visualizations</p>
+                            <ul>
+                                <li><strong>max_new_tokens=2048</strong> for both MMLU and GPQA (not 8192)</li>
+                                <li>5 rollouts per condition (cued/uncued)</li>
+                                <li>Script: <code>anchors_unified.ipynb</code></li>
+                            </ul>
+                        </div>
+
+                        <p class="sidenote-source">
+                            Original source: <a href="https://github.com/interp-reasoning/thought-anchors/tree/main/whitebox-analyses/attention_analysis" target="_blank">whitebox-analyses/attention_analysis/</a>
+                        </p>
+                    </div>
+                </div>
             </div>
             </div> <!-- appendix-content -->
         </section>

@@ -5,18 +5,23 @@
 
 // State
 let currentDataset = 'mmlu';
-let currentCategory = 'faithful';
+let selectedCategories = ['faithful', 'unfaithful'];  // Multiselect
 let currentPI = null;
 let currentHeadsSource = 'aggregate';
+let currentAttentionMode = 'full';  // 'full' = with prompt, 'reasoning' = reasoning only
 let selectedCuedHead = null;
 let selectedUncuedHead = null;
 let selectedFvuHead = null;  // For faithful vs unfaithful section
 
+// Allowed PIs for MMLU (only show these)
+const ALLOWED_MMLU_PIS = [91, 152, 188, 19, 151, 182, 191];
+
 // DOM Elements
 const datasetSelect = document.getElementById('dataset-select');
-const categorySelect = document.getElementById('category-select');
+const categoryCheckboxes = document.querySelectorAll('#category-checkboxes input[type="checkbox"]');
 const piSelect = document.getElementById('pi-select');
 const headsSourceSelect = document.getElementById('heads-source');
+const attentionModeSelect = document.getElementById('attention-mode');
 const mainContent = document.getElementById('main-content');
 const tbaMessage = document.getElementById('tba-message');
 const tooltip = document.getElementById('tooltip');
@@ -33,21 +38,48 @@ function setupEventListeners() {
         updateUI();
     });
 
-    categorySelect.addEventListener('change', (e) => {
-        currentCategory = e.target.value;
-        updatePIDropdown();
-        updateQuestionInfo();
+    // Category checkboxes (multiselect)
+    categoryCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            selectedCategories = Array.from(categoryCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+            
+            // Ensure at least one category is selected
+            if (selectedCategories.length === 0) {
+                checkbox.checked = true;
+                selectedCategories = [checkbox.value];
+            }
+            
+            updatePIDropdown();
+            updateQuestionInfo();
+        });
     });
 
     piSelect.addEventListener('change', (e) => {
         currentPI = parseInt(e.target.value);
+        // Reset head selections when PI changes
+        selectedCuedHead = null;
+        selectedUncuedHead = null;
+        selectedFvuHead = null;
         updateQuestionInfo();
+        updateReceiverHeads();  // This will set new default heads
         updateAttentionView();
     });
 
     headsSourceSelect.addEventListener('change', (e) => {
         currentHeadsSource = e.target.value;
         updateReceiverHeads();
+    });
+
+    attentionModeSelect.addEventListener('change', (e) => {
+        currentAttentionMode = e.target.value;
+        // Reset head selections when mode changes (different top heads)
+        selectedCuedHead = null;
+        selectedUncuedHead = null;
+        selectedFvuHead = null;
+        updateReceiverHeads();
+        updateAttentionView();
     });
 }
 
@@ -56,8 +88,7 @@ function updateUI() {
     const datasetProblems = getDatasetProblems();
     const hasProblems = datasetProblems && 
         (datasetProblems.faithful?.length > 0 || 
-         datasetProblems.unfaithful?.length > 0 || 
-         datasetProblems.mixed?.length > 0);
+         datasetProblems.unfaithful?.length > 0);
     
     if (!hasProblems) {
         mainContent.classList.add('hidden');
@@ -84,11 +115,25 @@ function updatePIDropdown() {
         return;
     }
 
-    const problems = datasetProblems[currentCategory] || [];
+    // Combine problems from all selected categories
+    let problems = [];
+    selectedCategories.forEach(cat => {
+        const catProblems = datasetProblems[cat] || [];
+        problems = problems.concat(catProblems.map(p => ({...p, category: cat})));
+    });
+    
+    // Filter MMLU to only allowed PIs
+    if (currentDataset === 'mmlu') {
+        problems = problems.filter(p => ALLOWED_MMLU_PIS.includes(p.pi));
+    }
+    
+    // Sort by PI
+    problems.sort((a, b) => a.pi - b.pi);
+    
     piSelect.innerHTML = '';
 
     if (problems.length === 0) {
-        piSelect.innerHTML = '<option value="">No problems in this category</option>';
+        piSelect.innerHTML = '<option value="">No problems in selected categories</option>';
         currentPI = null;
         return;
     }
@@ -97,6 +142,12 @@ function updatePIDropdown() {
         const option = document.createElement('option');
         option.value = p.pi;
         option.textContent = `PI ${p.pi} (Acc: ${(p.accuracy_base * 100).toFixed(0)}%)`;
+        // Color-code: green for faithful, red-orange for unfaithful
+        if (p.category === 'faithful') {
+            option.style.color = '#166534';  // Green
+        } else {
+            option.style.color = '#991b1b';  // Red
+        }
         piSelect.appendChild(option);
     });
 
@@ -109,12 +160,34 @@ function getProblem(pi) {
     const datasetProblems = getDatasetProblems();
     if (!datasetProblems) return null;
     
-    for (const cat of ['faithful', 'unfaithful', 'mixed']) {
+    for (const cat of ['faithful', 'unfaithful']) {
         const catProblems = datasetProblems[cat] || [];
         const found = catProblems.find(p => p.pi === pi);
-        if (found) return found;
+        if (found) return {...found, category: cat};
     }
     return null;
+}
+
+function updateCategoryBadges(category) {
+    const badges = [
+        document.getElementById('pi-category-badge'),
+        document.getElementById('heads-category-badge'),
+        document.getElementById('attention-category-badge')
+    ];
+    
+    badges.forEach(badge => {
+        if (!badge) return;
+        badge.className = 'category-badge';
+        if (category === 'faithful') {
+            badge.textContent = 'Faithful';
+            badge.classList.add('faithful');
+        } else if (category === 'unfaithful') {
+            badge.textContent = 'Unfaithful';
+            badge.classList.add('unfaithful');
+        } else {
+            badge.textContent = '';
+        }
+    });
 }
 
 function getAttentionData(pi) {
@@ -133,8 +206,12 @@ function updateQuestionInfo() {
         document.getElementById('reasoning-acc').textContent = '—';
         document.getElementById('no-reasoning-acc').textContent = '—';
         document.getElementById('faithfulness-pct').textContent = '—';
+        updateCategoryBadges(null);
         return;
     }
+    
+    // Update category badges
+    updateCategoryBadges(problem.category);
 
     // Update question text (full text, scrollable)
     let questionText = problem.question_cued || problem.question;
@@ -203,8 +280,11 @@ function updateReceiverHeads() {
         return;
     }
 
-    const cuedHeads = attnData.top_heads.cued || [];
-    const uncuedHeads = attnData.top_heads.uncued || [];
+    // Get heads based on attention mode (full vs reasoning only)
+    const cuedKey = currentAttentionMode === 'reasoning' ? 'cued_reasoning' : 'cued';
+    const uncuedKey = currentAttentionMode === 'reasoning' ? 'uncued_reasoning' : 'uncued';
+    const cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
+    const uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
 
     // Find shared heads
     const cuedSet = new Set(cuedHeads.map(h => `L${h[0][0]}-H${h[0][1]}`));
@@ -230,6 +310,7 @@ function updateReceiverHeads() {
         
         if (idx === 0) {
             selectedCuedHead = { layer, head };
+            selectedFvuHead = { layer, head };  // Also set FvU head to match cued
         }
     });
 
@@ -263,23 +344,47 @@ function updateReceiverHeads() {
 function selectHead(badge, condition) {
     const layer = parseInt(badge.dataset.layer);
     const head = parseInt(badge.dataset.head);
+    const headKey = `L${layer}-H${head}`;
     
-    // Update selection state
-    const container = condition === 'cued' ? 
-        document.getElementById('cued-heads') : 
-        document.getElementById('uncued-heads');
+    const cuedContainer = document.getElementById('cued-heads');
+    const uncuedContainer = document.getElementById('uncued-heads');
     
+    // Check if this head exists in the other column (is shared)
+    const otherContainer = condition === 'cued' ? uncuedContainer : cuedContainer;
+    const matchingBadgeInOther = Array.from(otherContainer.querySelectorAll('.head-badge')).find(b => 
+        parseInt(b.dataset.layer) === layer && parseInt(b.dataset.head) === head
+    );
+    
+    // Clear selections in current container
+    const container = condition === 'cued' ? cuedContainer : uncuedContainer;
     container.querySelectorAll('.head-badge').forEach(b => b.classList.remove('selected'));
     badge.classList.add('selected');
     
-    if (condition === 'cued') {
+    // If shared, also select in the other container
+    if (matchingBadgeInOther) {
+        otherContainer.querySelectorAll('.head-badge').forEach(b => b.classList.remove('selected'));
+        matchingBadgeInOther.classList.add('selected');
+        
+        // Update both heads
         selectedCuedHead = { layer, head };
-        selectedFvuHead = { layer, head };  // Sync FvU head with cued head
-        updateAttentionMatrix('cued');
-        updateFaithfulVsUnfaithful();  // Update FvU section too
-    } else {
         selectedUncuedHead = { layer, head };
+        selectedFvuHead = { layer, head };
+        
+        // Update both matrices
+        updateAttentionMatrix('cued');
         updateAttentionMatrix('uncued');
+        updateFaithfulVsUnfaithful();
+    } else {
+        // Not shared - only update the clicked column
+        if (condition === 'cued') {
+            selectedCuedHead = { layer, head };
+            selectedFvuHead = { layer, head };
+            updateAttentionMatrix('cued');
+            updateFaithfulVsUnfaithful();
+        } else {
+            selectedUncuedHead = { layer, head };
+            updateAttentionMatrix('uncued');
+        }
     }
 }
 
@@ -335,7 +440,8 @@ function updateFaithfulVsUnfaithful() {
             selectedFvuHead = selectedCuedHead;
         }
         if (!selectedFvuHead) {
-            const cuedHeads = attnData.top_heads.cued || [];
+            const cuedKey = currentAttentionMode === 'reasoning' ? 'cued_reasoning' : 'cued';
+            const cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
             if (cuedHeads.length > 0) {
                 selectedFvuHead = { layer: cuedHeads[0][0][0], head: cuedHeads[0][0][1] };
             }
@@ -369,7 +475,8 @@ function updateFaithfulVsUnfaithful() {
             selectedFvuHead = selectedCuedHead;
         }
         if (!selectedFvuHead) {
-            const cuedHeads = attnData.top_heads.cued || [];
+            const cuedKey = currentAttentionMode === 'reasoning' ? 'cued_reasoning' : 'cued';
+            const cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
             if (cuedHeads.length > 0) {
                 selectedFvuHead = { layer: cuedHeads[0][0][0], head: cuedHeads[0][0][1] };
             }
@@ -393,8 +500,9 @@ function updateFaithfulVsUnfaithful() {
     }
     
     if (!selectedFvuHead) {
-        // Default to first cued head
-        const cuedHeads = attnData.top_heads.cued || [];
+        // Default to first cued head (respecting attention mode)
+        const cuedKey = currentAttentionMode === 'reasoning' ? 'cued_reasoning' : 'cued';
+        const cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
         if (cuedHeads.length > 0) {
             selectedFvuHead = { layer: cuedHeads[0][0][0], head: cuedHeads[0][0][1] };
         }
@@ -419,8 +527,17 @@ function updateFvuMatrix(type, attnData, selectedHead) {
     const headKey = `L${selectedHead.layer}-H${selectedHead.head}`;
     headBadgeEl.textContent = headKey;
     
-    // Get the appropriate data
-    const attentionData = type === 'faithful' ? attnData.faithful_attention : attnData.unfaithful_attention;
+    // Get the appropriate data (use reasoning-only version if in reasoning mode)
+    let attentionData;
+    if (currentAttentionMode === 'reasoning') {
+        attentionData = type === 'faithful' ? attnData.faithful_attention_reasoning : attnData.unfaithful_attention_reasoning;
+    } else {
+        attentionData = type === 'faithful' ? attnData.faithful_attention : attnData.unfaithful_attention;
+    }
+    // Fall back to full attention if reasoning version not available
+    if (!attentionData) {
+        attentionData = type === 'faithful' ? attnData.faithful_attention : attnData.unfaithful_attention;
+    }
     const rolloutData = type === 'faithful' ? attnData.faithful_rollout : attnData.unfaithful_rollout;
     
     if (!attentionData || !attentionData[headKey]) {
@@ -431,12 +548,23 @@ function updateFvuMatrix(type, attnData, selectedHead) {
     
     const headData = attentionData[headKey];
     const matrix = headData.matrix;
-    const sentences = rolloutData.sentences || [];
-    const promptLen = rolloutData.prompt_len || 0;
-    
+    const allSentences = rolloutData.sentences || [];
+    // Cap prompt_len to number of sentences (fix for bad data)
+    const fullPromptLen = Math.min(rolloutData.prompt_len || 0, allSentences.length);
+
+    // In reasoning mode, only show reasoning sentences (no prompt)
+    let sentences, promptLen;
+    if (currentAttentionMode === 'reasoning') {
+        sentences = allSentences.slice(fullPromptLen);  // Only reasoning sentences
+        promptLen = 0;  // No prompt in reasoning-only view
+    } else {
+        sentences = allSentences;
+        promptLen = fullPromptLen;
+    }
+
     // Render matrix
     renderMatrix(matrixEl, matrix, sentences, promptLen, type);
-    
+
     // Find and display stripes
     const stripes = findStripes(matrix, sentences, promptLen, type);
     renderStripes(stripesEl, stripes, type);
@@ -459,8 +587,17 @@ function updateAttentionMatrix(condition) {
     const headKey = `L${selectedHead.layer}-H${selectedHead.head}`;
     selectedHeadEl.textContent = headKey;
 
-    // Get attention data for this head
-    const conditionAttn = condition === 'cued' ? attnData.cued_attention : attnData.uncued_attention;
+    // Get attention data for this head (use reasoning-only version if in reasoning mode)
+    let conditionAttn;
+    if (currentAttentionMode === 'reasoning') {
+        conditionAttn = condition === 'cued' ? attnData.cued_attention_reasoning : attnData.uncued_attention_reasoning;
+    } else {
+        conditionAttn = condition === 'cued' ? attnData.cued_attention : attnData.uncued_attention;
+    }
+    // Fall back to full attention if reasoning version not available
+    if (!conditionAttn) {
+        conditionAttn = condition === 'cued' ? attnData.cued_attention : attnData.uncued_attention;
+    }
     const rolloutData = condition === 'cued' ? attnData.cued_rollout : attnData.uncued_rollout;
     
     if (!conditionAttn || !conditionAttn[headKey]) {
@@ -471,8 +608,9 @@ function updateAttentionMatrix(condition) {
 
     const headData = conditionAttn[headKey];
     const matrix = headData.matrix;
-    const sentences = rolloutData.sentences || [];
-    const promptLen = rolloutData.prompt_len || 0;
+    const allSentences = rolloutData.sentences || [];
+    // Cap prompt_len to number of sentences (fix for bad data)
+    const fullPromptLen = Math.min(rolloutData.prompt_len || 0, allSentences.length);
 
     // Update professor mention badge for cued
     if (condition === 'cued') {
@@ -480,6 +618,16 @@ function updateAttentionMatrix(condition) {
         const config = attnData.config || {};
         const mentionRate = config.cued_professor_mention_proportion || 0;
         profMentionEl.textContent = `Prof: ${(mentionRate * 100).toFixed(0)}%`;
+    }
+
+    // In reasoning mode, only show reasoning sentences (no prompt)
+    let sentences, promptLen;
+    if (currentAttentionMode === 'reasoning') {
+        sentences = allSentences.slice(fullPromptLen);  // Only reasoning sentences
+        promptLen = 0;  // No prompt in reasoning-only view
+    } else {
+        sentences = allSentences;
+        promptLen = fullPromptLen;
     }
 
     // Render matrix
@@ -497,50 +645,95 @@ function renderMatrix(container, matrix, sentences, promptLen, condition) {
     }
 
     const n = matrix.length;
-    const cellSize = Math.max(8, Math.min(14, 450 / n));
     
-    // Create labels like notebook
-    const labels = sentences.map((s, i) => {
-        if (i < promptLen) return `P${i}`;
-        return `R${i - promptLen}`;
-    });
+    // For large matrices (GPQA), group sentences
+    const MAX_DISPLAY = 30;
+    const shouldGroup = n > MAX_DISPLAY;
+    const groupSize = shouldGroup ? Math.ceil(n / MAX_DISPLAY) : 1;
+    const displayN = shouldGroup ? Math.ceil(n / groupSize) : n;
     
-    // Find max value for color scaling (excluding diagonal for better contrast)
+    // Group the matrix if needed
+    let displayMatrix, displayLabels;
+    if (shouldGroup) {
+        displayMatrix = [];
+        displayLabels = [];
+        
+        for (let gi = 0; gi < displayN; gi++) {
+            const rowStart = gi * groupSize;
+            const rowEnd = Math.min((gi + 1) * groupSize, n);
+            
+            // Create label for this group
+            const startLabel = rowStart < promptLen ? `P${rowStart}` : `R${rowStart - promptLen}`;
+            const endIdx = rowEnd - 1;
+            const endLabel = endIdx < promptLen ? `P${endIdx}` : `R${endIdx - promptLen}`;
+            displayLabels.push(rowEnd - rowStart > 1 ? `${startLabel}-${endLabel.replace(/[PR]/, '')}` : startLabel);
+            
+            const row = [];
+            for (let gj = 0; gj < displayN; gj++) {
+                const colStart = gj * groupSize;
+                const colEnd = Math.min((gj + 1) * groupSize, n);
+                
+                // Average the values in this block
+                let sum = 0, count = 0;
+                for (let i = rowStart; i < rowEnd; i++) {
+                    for (let j = colStart; j < colEnd; j++) {
+                        sum += matrix[i][j];
+                        count++;
+                    }
+                }
+                row.push(count > 0 ? sum / count : 0);
+            }
+            displayMatrix.push(row);
+        }
+    } else {
+        displayMatrix = matrix;
+        displayLabels = sentences.map((s, i) => {
+            if (i < promptLen) return `P${i}`;
+            return `R${i - promptLen}`;
+        });
+    }
+    
+    // Calculate cell size to fill container (target ~380px for the matrix)
+    const targetSize = 360;
+    const cellSize = Math.max(8, Math.floor(targetSize / displayN));
+    
+    // Find max value for color scaling
     let maxVal = 0;
-    for (let i = 0; i < n; i++) {
-        for (let j = 0; j < n; j++) {
-            if (i !== j && matrix[i][j] > maxVal) maxVal = matrix[i][j];
+    for (let i = 0; i < displayN; i++) {
+        for (let j = 0; j < displayN; j++) {
+            if (i !== j && displayMatrix[i][j] > maxVal) maxVal = displayMatrix[i][j];
         }
     }
     if (maxVal === 0) maxVal = 1;
 
-    let html = `<div class="cv-matrix" style="display: inline-block; font-family: 'Courier New', monospace; font-size: 9px;">`;
+    const fontSize = displayN > 25 ? 7 : (displayN > 15 ? 8 : 9);
+    const labelWidth = displayN > 25 ? cellSize * 3.5 : cellSize * 2.5;
+    
+    let html = `<div class="cv-matrix" style="display: inline-block; font-family: 'Courier New', monospace; font-size: ${fontSize}px;">`;
     
     // Column labels (top)
-    html += `<div style="display: flex; margin-left: ${cellSize * 2 + 2}px; height: 35px; align-items: flex-end;">`;
-    labels.forEach((label) => {
-        html += `<div style="width: ${cellSize}px; transform: rotate(-45deg); transform-origin: left bottom; white-space: nowrap; color: #666;">${label}</div>`;
+    html += `<div style="display: flex; margin-left: ${labelWidth + 2}px; height: 45px; align-items: flex-end;">`;
+    displayLabels.forEach((label) => {
+        html += `<div style="width: ${cellSize}px; transform: rotate(-45deg); transform-origin: left bottom; white-space: nowrap; color: #666; font-size: ${fontSize}px;">${label}</div>`;
     });
     html += '</div>';
 
     // Matrix rows
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < displayN; i++) {
         html += `<div style="display: flex; align-items: center; height: ${cellSize}px;">`;
         // Row label
-        html += `<div style="width: ${cellSize * 2}px; text-align: right; padding-right: 4px; color: #666; font-size: 8px;">${labels[i]}</div>`;
+        html += `<div style="width: ${labelWidth}px; text-align: right; padding-right: 4px; color: #666; font-size: ${fontSize}px;">${displayLabels[i]}</div>`;
         
-        for (let j = 0; j < n; j++) {
-            const val = matrix[i][j];
-            // Mask upper triangle (j > i) - like CircuitsVis maskUpperTri
+        for (let j = 0; j < displayN; j++) {
+            const val = displayMatrix[i][j];
+            // Mask upper triangle
             const isMasked = j > i;
             const color = isMasked ? '#f5f5f5' : getHeatColor(val, maxVal);
-            const srcLabel = labels[j];
-            const destLabel = labels[i];
             
             html += `
                 <div class="matrix-cell" 
                      style="width: ${cellSize}px; height: ${cellSize}px; background-color: ${color}; ${isMasked ? '' : 'cursor: crosshair;'}"
-                     ${isMasked ? '' : `data-src="${srcLabel}" data-dest="${destLabel}" data-val="${val.toFixed(4)}" onmouseenter="showTooltip(event, this)" onmouseleave="hideTooltip()"`}>
+                     ${isMasked ? '' : `data-src="${displayLabels[j]}" data-dest="${displayLabels[i]}" data-val="${val.toFixed(4)}" onmouseenter="showTooltip(event, this)" onmouseleave="hideTooltip()"`}>
                 </div>
             `;
         }
@@ -659,7 +852,7 @@ function findStripes(matrix, sentences, promptLen, condition) {
         }
     });
     
-    // Take top 5
+    // Take top 5 by attention
     for (let i = 0; i < Math.min(5, indexed.length); i++) {
         const { idx, sum } = indexed[i];
         const isPrompt = idx < promptLen;
@@ -674,6 +867,9 @@ function findStripes(matrix, sentences, promptLen, condition) {
             label: isPrompt ? `P${idx}` : `R${idx - promptLen}`
         });
     }
+    
+    // Sort by order of appearance (idx)
+    stripes.sort((a, b) => a.idx - b.idx);
     
     return stripes;
 }
@@ -748,7 +944,17 @@ window.DEBUG = {
     DATA: typeof DATA !== 'undefined' ? DATA : null
 };
 
+// Toggle sidenote expand/collapse
+function toggleSidenote(id) {
+    const content = document.getElementById(`${id}-content`);
+    const toggle = document.getElementById(`${id}-toggle`);
+
+    content.classList.toggle('collapsed');
+    toggle.classList.toggle('expanded');
+}
+
 // Make toggle functions available globally
 window.toggleAppendix = toggleAppendix;
 window.toggleQuestionExpand = toggleQuestionExpand;
+window.toggleSidenote = toggleSidenote;
 
