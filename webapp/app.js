@@ -472,7 +472,7 @@ function updateFaithfulVsUnfaithful() {
     if (!attnData || !attnData.has_faithful_vs_unfaithful) {
         fvuSection.classList.remove('hidden');
         fvuNotAvailable.classList.remove('hidden');
-        fvuNotAvailable.innerHTML = `<p>⚠️ Faithful vs Unfaithful comparison not available for this problem. 
+        fvuNotAvailable.innerHTML = `<p>Faithful vs Unfaithful comparison not available for this problem. 
             This requires both a cued rollout that mentions the professor AND one that doesn't.</p>`;
         fvuComparison.classList.add('hidden');
         return;
@@ -484,7 +484,7 @@ function updateFaithfulVsUnfaithful() {
         fvuSection.classList.remove('hidden');
         fvuNotAvailable.classList.remove('hidden');
         fvuNotAvailable.innerHTML = `
-            <p>🎯 <strong>Consistently Faithful:</strong> This problem produces faithful CoT rollouts 
+            <p><strong>Consistently Faithful:</strong> This problem produces faithful CoT rollouts 
             <strong>${(rate * 100).toFixed(0)}%</strong> of the time when cued. 
             No unfaithful rollout could be generated after 5 attempts.</p>
             <p style="margin-top: 0.5rem; font-size: 0.9em; opacity: 0.8;">
@@ -519,7 +519,7 @@ function updateFaithfulVsUnfaithful() {
         fvuSection.classList.remove('hidden');
         fvuNotAvailable.classList.remove('hidden');
         fvuNotAvailable.innerHTML = `
-            <p>🔇 <strong>Consistently Unfaithful:</strong> This problem produces unfaithful CoT rollouts 
+            <p><strong>Consistently Unfaithful:</strong> This problem produces unfaithful CoT rollouts 
             <strong>${((1 - rate) * 100).toFixed(0)}%</strong> of the time when cued (never mentions the cue). 
             No faithful rollout could be generated after 5 attempts.</p>
             <p style="margin-top: 0.5rem; font-size: 0.9em; opacity: 0.8;">

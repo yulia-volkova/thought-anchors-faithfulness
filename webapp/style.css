@@ -131,20 +131,24 @@ body {
 /* Control Panel */
 .control-panel {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-lg);
+    flex-wrap: nowrap;
+    gap: var(--spacing-md);
     padding: var(--spacing-lg);
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-xl);
+    margin: 0 auto var(--spacing-xl) auto;
+    overflow-x: auto;
+    width: fit-content;
+    max-width: 100%;
 }
 
 .control-group {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
-    min-width: 180px;
+    min-width: 140px;
+    flex-shrink: 0;
 }
 
 .control-group label {
@@ -175,6 +179,30 @@ body {
     outline: none;
     border-color: var(--accent-cued);
     box-shadow: 0 0 0 3px rgba(196, 90, 59, 0.1);
+}
+
+/* Checkbox Group */
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent-cued);
 }
 
 /* Info Icon and Tooltip */
@@ -729,7 +757,12 @@ section h2 {
     }
     
     .control-panel {
-        flex-direction: column;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    
+    .control-group {
+        min-width: 100%;
     }
 }
 
@@ -936,6 +969,7 @@ section h2 {
     border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
+    height: 100%;
 }
 
 .finding-header {
@@ -970,7 +1004,7 @@ section h2 {
 
 /* Expandable Graph Sections */
 .expand-graph-btn {
-    margin-top: var(--spacing-sm);
+    margin-top: auto;
     padding: var(--spacing-xs) var(--spacing-sm);
     font-size: 0.85rem;
     color: var(--accent-cued);
@@ -979,6 +1013,7 @@ section h2 {
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all 0.2s ease;
+    align-self: flex-start;
 }
 
 .expand-graph-btn:hover {
@@ -1123,8 +1158,7 @@ section h2 {
 }
 
 .faithful-panel .panel-header {
-    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-    border-bottom: 2px solid #22c55e;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .faithful-panel .panel-header h3 {
@@ -1132,8 +1166,7 @@ section h2 {
 }
 
 .unfaithful-panel .panel-header {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-    border-bottom: 2px solid #ef4444;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .unfaithful-panel .panel-header h3 {
