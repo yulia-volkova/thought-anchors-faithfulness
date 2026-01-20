@@ -69,7 +69,12 @@ function setupEventListeners() {
 
     headsSourceSelect.addEventListener('change', (e) => {
         currentHeadsSource = e.target.value;
+        // Reset head selections when source changes (different top heads)
+        selectedCuedHead = null;
+        selectedUncuedHead = null;
+        selectedFvuHead = null;
         updateReceiverHeads();
+        updateAttentionView();
     });
 
     attentionModeSelect.addEventListener('change', (e) => {
@@ -86,11 +91,20 @@ function setupEventListeners() {
     const headsSourceInfo = document.getElementById('heads-source-info');
     const headsSourceTooltip = document.getElementById('heads-source-tooltip');
     if (headsSourceInfo && headsSourceTooltip) {
-        headsSourceInfo.addEventListener('mouseenter', () => {
+        headsSourceInfo.addEventListener('mouseenter', (e) => {
+            const rect = headsSourceInfo.getBoundingClientRect();
+            headsSourceTooltip.style.position = 'fixed';
+            headsSourceTooltip.style.top = (rect.bottom + 8) + 'px';
+            headsSourceTooltip.style.left = Math.max(10, rect.left - 150) + 'px';
             headsSourceTooltip.classList.remove('hidden');
         });
-        headsSourceInfo.addEventListener('mouseleave', () => {
-            headsSourceTooltip.classList.add('hidden');
+        headsSourceInfo.addEventListener('mouseleave', (e) => {
+            // Delay to allow moving to tooltip
+            setTimeout(() => {
+                if (!headsSourceTooltip.matches(':hover') && !headsSourceInfo.matches(':hover')) {
+                    headsSourceTooltip.classList.add('hidden');
+                }
+            }, 100);
         });
         // Also show/hide when hovering over the tooltip itself
         headsSourceTooltip.addEventListener('mouseenter', () => {
@@ -330,11 +344,12 @@ function headHasCueInTopSources(attnData, layer, head, condition) {
 
 function updateReceiverHeads() {
     const attnData = getAttentionData(currentPI);
-    
+    const problem = getProblem(currentPI);
+
     const cuedHeadsEl = document.getElementById('cued-heads');
     const uncuedHeadsEl = document.getElementById('uncued-heads');
     const sharedHeadsEl = document.getElementById('shared-heads-list');
-    
+
     if (!attnData || !attnData.top_heads) {
         cuedHeadsEl.innerHTML = '<span class="text-muted">No attention data</span>';
         uncuedHeadsEl.innerHTML = '<span class="text-muted">No attention data</span>';
@@ -342,11 +357,53 @@ function updateReceiverHeads() {
         return;
     }
 
-    // Get heads based on attention mode (full vs reasoning only)
+    // Determine which heads to use based on heads source setting
+    let cuedHeads, uncuedHeads;
     const cuedKey = currentAttentionMode === 'reasoning' ? 'cued_reasoning' : 'cued';
     const uncuedKey = currentAttentionMode === 'reasoning' ? 'uncued_reasoning' : 'uncued';
-    const cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
-    const uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
+
+    if (currentHeadsSource === 'aggregate' && problem) {
+        // Use aggregate heads for the problem's category
+        const category = problem.category;
+        const aggregateData = DATA.aggregate_heads?.[currentDataset]?.[category];
+
+        if (aggregateData) {
+            // Aggregate heads use keys: top_cued_heads, top_uncued_heads
+            // Filter to only include heads that have matrices available for this PI
+            const cuedAttn = currentAttentionMode === 'reasoning'
+                ? (attnData.cued_attention_reasoning || attnData.cued_attention)
+                : attnData.cued_attention;
+            const uncuedAttn = currentAttentionMode === 'reasoning'
+                ? (attnData.uncued_attention_reasoning || attnData.uncued_attention)
+                : attnData.uncued_attention;
+
+            const availableCuedHeads = cuedAttn ? new Set(Object.keys(cuedAttn)) : new Set();
+            const availableUncuedHeads = uncuedAttn ? new Set(Object.keys(uncuedAttn)) : new Set();
+
+            cuedHeads = (aggregateData.top_cued_heads || []).filter(h =>
+                availableCuedHeads.has(`L${h[0][0]}-H${h[0][1]}`)
+            );
+            uncuedHeads = (aggregateData.top_uncued_heads || []).filter(h =>
+                availableUncuedHeads.has(`L${h[0][0]}-H${h[0][1]}`)
+            );
+
+            // Fall back to per-PI heads if no aggregate heads have matrices
+            if (cuedHeads.length === 0) {
+                cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
+            }
+            if (uncuedHeads.length === 0) {
+                uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
+            }
+        } else {
+            // Fall back to per-PI heads if aggregate not available
+            cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
+            uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
+        }
+    } else {
+        // Use per-PI heads (single)
+        cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
+        uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
+    }
 
     // Find shared heads
     const cuedSet = new Set(cuedHeads.map(h => `L${h[0][0]}-H${h[0][1]}`));
@@ -750,10 +807,16 @@ function renderMatrix(container, matrix, sentences, promptLen, condition) {
         }
     } else {
         displayMatrix = matrix;
-        displayLabels = sentences.map((s, i) => {
-            if (i < promptLen) return `P${i}`;
-            return `R${i - promptLen}`;
-        });
+        // Generate labels based on matrix size, not sentences length
+        // (matrix may have more rows than sentences if data is misaligned)
+        displayLabels = [];
+        for (let i = 0; i < n; i++) {
+            if (i < promptLen) {
+                displayLabels.push(`P${i}`);
+            } else {
+                displayLabels.push(`R${i - promptLen}`);
+            }
+        }
     }
     
     // Calculate cell size to fill container (target ~380px for the matrix)
@@ -882,9 +945,25 @@ function hideTooltip() {
     }
 }
 
+function showInfoTooltip(event) {
+    const tooltip = document.getElementById('tooltip');
+    if (!tooltip) return;
+
+    tooltip.innerHTML = `
+        <div style="font-size: 12px; line-height: 1.5; max-width: 280px;">
+            Attention = column sum = total attention this sentence receives from all later sentences, for the selected head (one layer, one head)
+        </div>
+    `;
+    tooltip.style.left = (event.clientX + 15) + 'px';
+    tooltip.style.top = (event.clientY - 60) + 'px';
+    tooltip.style.display = 'block';
+    tooltip.classList.remove('hidden');
+}
+
 // Make tooltip functions globally available
 window.showTooltip = showTooltip;
 window.hideTooltip = hideTooltip;
+window.showInfoTooltip = showInfoTooltip;
 
 function findStripes(matrix, sentences, promptLen, condition) {
     if (!matrix || matrix.length === 0) return [];
@@ -916,24 +995,46 @@ function findStripes(matrix, sentences, promptLen, condition) {
     });
     
     // Take top 5 by attention
+    const topIndices = new Set();
     for (let i = 0; i < Math.min(5, indexed.length); i++) {
         const { idx, sum } = indexed[i];
         const isPrompt = idx < promptLen;
         const isCue = cueIdxs.has(idx);
-        
+        topIndices.add(idx);
+
         stripes.push({
             idx,
             sum,
             sentence: sentences[idx] || '',
             isPrompt,
             isCue,
+            notTopSource: false,
             label: isPrompt ? `P${idx}` : `R${idx - promptLen}`
         });
     }
-    
+
+    // For faithful rollouts, always include cue sentences even if not in top 5
+    if (condition === 'faithful') {
+        for (const cueIdx of cueIdxs) {
+            if (!topIndices.has(cueIdx)) {
+                const cueSum = colSums[cueIdx] || 0;
+                const isPrompt = cueIdx < promptLen;
+                stripes.push({
+                    idx: cueIdx,
+                    sum: cueSum,
+                    sentence: sentences[cueIdx] || '',
+                    isPrompt,
+                    isCue: true,
+                    notTopSource: true,  // Flag that this wasn't in top 5
+                    label: isPrompt ? `P${cueIdx}` : `R${cueIdx - promptLen}`
+                });
+            }
+        }
+    }
+
     // Sort by order of appearance (idx)
     stripes.sort((a, b) => a.idx - b.idx);
-    
+
     return stripes;
 }
 
@@ -946,26 +1047,45 @@ function renderStripes(container, stripes, condition) {
     let cueInStripes = false;
     let html = '';
     
-    stripes.forEach(stripe => {
+    const topSources = stripes.filter(s => !s.notTopSource);
+    const cueNotInTop = stripes.filter(s => s.notTopSource);
+
+    // Render top sources
+    topSources.forEach(stripe => {
         const cueClass = stripe.isCue ? 'cue-sentence' : '';
         const cueMarker = stripe.isCue ? '<span class="cue-marker">[CUE]</span>' : '';
-        
+
         if (stripe.isCue) cueInStripes = true;
-        
-        // Build class string properly (trim to avoid extra spaces)
-        const classStr = cueClass ? `stripe-text ${cueClass}` : 'stripe-text';
-        
+
+        const finalClass = cueClass ? `stripe-text ${cueClass}` : 'stripe-text';
+
         html += `
             <li>
                 <span class="stripe-idx">[${stripe.label}]</span>
-                <span class="${classStr}">
+                <span class="${finalClass}">
                     ${escapeHtml(stripe.sentence.slice(0, 100))}${stripe.sentence.length > 100 ? '...' : ''}
                     ${cueMarker}
                 </span>
             </li>
         `;
     });
-    
+
+    // Render cue sentences not in top sources below with header
+    if (cueNotInTop.length > 0) {
+        html += `<li class="cue-not-in-top-header">Cue mention (not in top sources): <span class="info-icon" onmouseenter="showInfoTooltip(event)" onmouseleave="hideTooltip()">ℹ️</span></li>`;
+        cueNotInTop.forEach(stripe => {
+            html += `
+                <li class="cue-not-in-top-item">
+                    <span class="stripe-idx">[${stripe.label}]</span>
+                    <span class="stripe-text cue-sentence">
+                        ${escapeHtml(stripe.sentence.slice(0, 100))}${stripe.sentence.length > 100 ? '...' : ''}
+                        <span class="cue-attention-value">(attention: ${stripe.sum.toFixed(2)})</span>
+                    </span>
+                </li>
+            `;
+        });
+    }
+
     container.innerHTML = html;
     
     // Update cue in stripes indicator if cued condition

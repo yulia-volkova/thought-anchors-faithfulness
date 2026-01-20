@@ -19,15 +19,15 @@
         <section class="hypothesis-section">
             <h2>Hypothesis</h2>
             <p class="hypothesis-text">
-                If white-box attention patterns ("thought anchors") reflect how models use information during reasoning,
+                If white-box attention attribution patterns reflect how models use information during reasoning,
                 then <strong>faithful CoT</strong> (where reasoning genuinely influences the answer) should show focused attention
                 to relevant broadcasting sentences, while <strong>unfaithful CoT</strong> (post-hoc rationalization)
-                may exhibit more diffuse attention or anchor to different, potentially misleading cues.
+                may exhibit more diffuse attention or anchor to different, potentially misleading parts of the reasoning chain.
             </p>
             <p class="hypothesis-text" style="margin-top: 0.75rem; font-style: normal; font-size: 0.95rem; color: var(--text-secondary);">
                 This work replicates and extends <a href="https://arxiv.org/abs/2506.19143" target="_blank" style="color: var(--accent-cued);">Bogdan et al. (2025) "Thought Anchors"</a>
-                to test whether receiver heads and vertical stripe patterns differ between faithful and unfaithful chains.
-                If attention markers reliably distinguish faithful from unfaithful CoT, this could enable
+                to test whether receiver heads and vertical stripe patterns of attention targeted towards specific sentences ("thought anchors") differ between faithful and unfaithful chains.
+                If attention markers meaningfully distinguish faithful from unfaithful CoT, this could enable
                 white-box monitoring of reasoning quality in deployed models.
             </p>
         </section>

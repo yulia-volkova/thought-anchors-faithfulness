@@ -10,15 +10,15 @@ import numpy as np
 from pathlib import Path
 
 # Paths - MMLU
-MMLU_CSV_PATH = "../data/selected_rollouts_mmlu.csv"
+MMLU_CSV_PATH = "../selected_rollouts_3.csv"
 MMLU_ATTENTION_DIR = "../final/mmlu"
 
 # Paths - GPQA
 GPQA_SELECTED_PATH = "../data/selected_problems_gpqa-8192-mt.csv"
-GPQA_CUE_LONG_PATH = "../rollout_outputs/gpqa/df_cue_long_8192_mt.csv"
-GPQA_BASE_LONG_PATH = "../rollout_outputs/gpqa/df_base_long_8192_mt.csv"
-GPQA_CUE_SUMMARY_PATH = "../rollout_outputs/gpqa/df_cue_summary_8192_mt.csv"
-GPQA_BASE_SUMMARY_PATH = "../rollout_outputs/gpqa/df_base_summary_8192_mt.csv"
+GPQA_CUE_LONG_PATH = "../rollout_outputs/gpqa_8192_mt/df_cue_long_8192_mt.csv"
+GPQA_BASE_LONG_PATH = "../rollout_outputs/gpqa_8192_mt/df_base_long_8192_mt.csv"
+GPQA_CUE_SUMMARY_PATH = "../rollout_outputs/gpqa_8192_mt/df_cue_summary_8192_mt.csv"
+GPQA_BASE_SUMMARY_PATH = "../rollout_outputs/gpqa_8192_mt/df_base_summary_8192_mt.csv"
 GPQA_NO_REASONING_SUMMARY_PATH = "../rollout_outputs/gpqa/df_no_reasoning_summary.csv"
 GPQA_ATTENTION_DIR = "../final/gpqa"
 
@@ -96,9 +96,19 @@ def load_mmlu_data():
 
 def load_gpqa_data():
     """Load and summarize GPQA rollout data from CSV files."""
+    # Check if required files exist
+    required_files = [GPQA_SELECTED_PATH, GPQA_CUE_LONG_PATH, GPQA_BASE_LONG_PATH,
+                      GPQA_CUE_SUMMARY_PATH, GPQA_BASE_SUMMARY_PATH]
+    missing_files = [f for f in required_files if not os.path.exists(f)]
+    if missing_files:
+        print(f"  Warning: GPQA data files not found, skipping GPQA")
+        for f in missing_files:
+            print(f"    Missing: {f}")
+        return {'faithful': [], 'unfaithful': [], 'mixed': []}, {}
+
     # Load selected problems with categories
     df_selected = pd.read_csv(GPQA_SELECTED_PATH)
-    
+
     # Load rollout data
     df_cue_long = pd.read_csv(GPQA_CUE_LONG_PATH)
     df_base_long = pd.read_csv(GPQA_BASE_LONG_PATH)
@@ -262,14 +272,33 @@ def compute_gpqa_stats(df_cue_summary, df_base_summary, df_no_reasoning_summary,
     return stats
 
 
+def load_aggregate_heads(attention_dir, category):
+    """Load aggregate top heads for a category (faithful/unfaithful)."""
+    aggregate_path = os.path.join(attention_dir, "aggregate", category, "aggregate_top_heads.json")
+    if os.path.exists(aggregate_path):
+        with open(aggregate_path, 'r') as f:
+            return json.load(f)
+    return None
+
+
 def load_mmlu_attention_data():
     """Load saved MMLU attention analysis results."""
     attention_data = {}
-    
+
     if not os.path.exists(MMLU_ATTENTION_DIR):
         print(f"Warning: Attention directory {MMLU_ATTENTION_DIR} not found")
-        return attention_data
-    
+        return attention_data, {}
+
+    # Load aggregate heads for each category
+    aggregate_heads = {
+        'faithful': load_aggregate_heads(MMLU_ATTENTION_DIR, 'faithful'),
+        'unfaithful': load_aggregate_heads(MMLU_ATTENTION_DIR, 'unfaithful'),
+    }
+    if aggregate_heads['faithful']:
+        print(f"  Loaded aggregate heads for faithful category")
+    if aggregate_heads['unfaithful']:
+        print(f"  Loaded aggregate heads for unfaithful category")
+
     for folder in os.listdir(MMLU_ATTENTION_DIR):
         folder_path = os.path.join(MMLU_ATTENTION_DIR, folder)
         if not os.path.isdir(folder_path):
@@ -291,15 +320,19 @@ def load_mmlu_attention_data():
         
         config_path = os.path.join(folder_path, 'config.json')
         top_heads_path = os.path.join(folder_path, 'top_heads.json')
-        
+
         if not os.path.exists(config_path) or not os.path.exists(top_heads_path):
             continue
-        
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-        
-        with open(top_heads_path, 'r') as f:
-            top_heads = json.load(f)
+
+        # Skip folders with empty or invalid JSON files
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            with open(top_heads_path, 'r') as f:
+                top_heads = json.load(f)
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"  Skipping {folder}: invalid JSON ({e})")
+            continue
         
         # Load rollout data
         cued_rollout_path = os.path.join(folder_path, 'cued', 'rollout.json')
@@ -430,18 +463,28 @@ def load_mmlu_attention_data():
             else:
                 fvu_status = " (with faithful vs unfaithful)"
         print(f"  Loaded attention data for PI {pi}" + fvu_status)
-    
-    return attention_data
+
+    return attention_data, aggregate_heads
 
 
 def load_gpqa_attention_data():
     """Load saved GPQA attention analysis results."""
     attention_data = {}
-    
+
     if not os.path.exists(GPQA_ATTENTION_DIR):
         print(f"Warning: GPQA Attention directory {GPQA_ATTENTION_DIR} not found")
-        return attention_data
-    
+        return attention_data, {}
+
+    # Load aggregate heads for each category
+    aggregate_heads = {
+        'faithful': load_aggregate_heads(GPQA_ATTENTION_DIR, 'faithful'),
+        'unfaithful': load_aggregate_heads(GPQA_ATTENTION_DIR, 'unfaithful'),
+    }
+    if aggregate_heads['faithful']:
+        print(f"  Loaded GPQA aggregate heads for faithful category")
+    if aggregate_heads['unfaithful']:
+        print(f"  Loaded GPQA aggregate heads for unfaithful category")
+
     for folder in os.listdir(GPQA_ATTENTION_DIR):
         folder_path = os.path.join(GPQA_ATTENTION_DIR, folder)
         if not os.path.isdir(folder_path):
@@ -463,15 +506,19 @@ def load_gpqa_attention_data():
         
         config_path = os.path.join(folder_path, 'config.json')
         top_heads_path = os.path.join(folder_path, 'top_heads.json')
-        
+
         if not os.path.exists(config_path) or not os.path.exists(top_heads_path):
             continue
-        
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-        
-        with open(top_heads_path, 'r') as f:
-            top_heads = json.load(f)
+
+        # Skip folders with empty or invalid JSON files
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            with open(top_heads_path, 'r') as f:
+                top_heads = json.load(f)
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"  Skipping {folder}: invalid JSON ({e})")
+            continue
         
         # Load rollout data - cued/uncued
         cued_rollout_path = os.path.join(folder_path, 'cued', 'rollout.json')
@@ -601,8 +648,8 @@ def load_gpqa_attention_data():
             else:
                 fvu_status = " (with faithful vs unfaithful)"
         print(f"  Loaded attention data for GPQA PI {pi}" + fvu_status)
-    
-    return attention_data
+
+    return attention_data, aggregate_heads
 
 
 def summarize_attention(npz_path, rollout, top_heads):
@@ -698,9 +745,9 @@ def main():
     print(f"  Mixed: {len(mmlu_problems['mixed'])} problems")
     
     print("\nLoading MMLU attention data...")
-    mmlu_attention = load_mmlu_attention_data()
+    mmlu_attention, mmlu_aggregate_heads = load_mmlu_attention_data()
     print(f"  Loaded {len(mmlu_attention)} attention analyses")
-    
+
     # === GPQA Data ===
     print("\n" + "=" * 60)
     print("Loading GPQA data...")
@@ -720,7 +767,7 @@ def main():
     
     # === GPQA Attention Data ===
     print("\nLoading GPQA attention data...")
-    gpqa_attention = load_gpqa_attention_data()
+    gpqa_attention, gpqa_aggregate_heads = load_gpqa_attention_data()
     print(f"  Loaded {len(gpqa_attention)} attention analyses")
     
     # Count those with faithful vs unfaithful comparison
@@ -737,6 +784,10 @@ def main():
         'attention': {
             'mmlu': {str(k): v for k, v in mmlu_attention.items()},
             'gpqa': {str(k): v for k, v in gpqa_attention.items()},
+        },
+        'aggregate_heads': {
+            'mmlu': mmlu_aggregate_heads,
+            'gpqa': gpqa_aggregate_heads,
         },
         'stats': {
             'gpqa': gpqa_stats,
