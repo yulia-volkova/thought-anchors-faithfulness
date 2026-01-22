@@ -460,7 +460,7 @@
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
                         <p>Lower base accuracy correlates with <strong>more cue following</strong> — effect is even stronger than MMLU.</p>
-                        <p class="finding-caveat"><strong>Caveat:</strong> This correlation may be confounded by problem difficulty — on harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
+                        <p class="finding-caveat"><strong>Cue following behaviour is likely confounded by problem difficulty. On harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('gpqa-acc-cue-follow')">Show graph ▼</button>
                         <div id="gpqa-acc-cue-follow" class="correlation-graph hidden">
                             <img src="images/gpqa_accuracy_vs_cue_following.png" alt="Accuracy vs Cue Following correlation (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
