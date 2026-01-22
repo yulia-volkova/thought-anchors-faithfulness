@@ -652,9 +652,11 @@ function updateFaithfulVsUnfaithful() {
     fvuSection.classList.remove('hidden');
     fvuNotAvailable.classList.add('hidden');
     fvuComparison.classList.remove('hidden');
-    
-    // Show the unfaithful panel
+
+    // Show both panels
+    const faithfulPanel = document.querySelector('.faithful-panel');
     const unfaithfulPanel = document.querySelector('.unfaithful-panel');
+    if (faithfulPanel) faithfulPanel.classList.remove('hidden');
     if (unfaithfulPanel) unfaithfulPanel.classList.remove('hidden');
     
     // Use the same head as the cued rollout for consistency
