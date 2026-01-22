@@ -652,6 +652,14 @@ section h2 {
     min-width: 3em;
 }
 
+.stripe-attn {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: #888;
+    margin-right: var(--spacing-xs);
+    white-space: nowrap;
+}
+
 .stripe-text {
     flex: 1;
     line-height: 1.4;
@@ -689,6 +697,16 @@ section h2 {
     color: var(--text-muted);
     font-size: 0.85rem;
     margin-left: 4px;
+}
+
+.fallback-note {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    margin-bottom: var(--spacing-sm);
 }
 
 .cue-not-in-top-item {
@@ -1026,6 +1044,16 @@ section h2 {
     font-size: 0.9rem;
     line-height: 1.5;
     margin: 0;
+}
+
+.finding-caveat {
+    margin-top: var(--spacing-sm) !important;
+    padding: var(--spacing-sm);
+    background: #fff8e6;
+    border-left: 3px solid #f0ad4e;
+    border-radius: var(--radius-xs);
+    font-size: 0.8rem !important;
+    color: #856404;
 }
 
 /* Expandable Graph Sections */

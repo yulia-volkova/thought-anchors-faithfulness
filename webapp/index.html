@@ -144,7 +144,8 @@
             <section class="receiver-heads-section">
                 <h2>Top Receiver Heads <span id="heads-category-badge" class="category-badge"></span></h2>
                 <p class="section-desc">Heads with highest kurtosis in attention distribution (indicating focused attention patterns)</p>
-                
+                <p id="heads-fallback-note" class="fallback-note hidden"></p>
+
                 <div class="heads-comparison">
                     <div class="heads-column">
                         <h3>Cued Rollout</h3>
@@ -186,7 +187,7 @@
                             </div>
                         </div>
                         <div class="stripe-analysis">
-                            <h4>Top Source Sentences (Stripes)</h4>
+                            <h4>Top Source Sentences (Stripes) <span class="info-icon" onmouseenter="showInfoTooltip(event)" onmouseleave="hideTooltip()">ℹ️</span></h4>
                             <ul id="cued-stripes" class="stripe-list">
                                 <!-- Populated dynamically -->
                             </ul>
@@ -205,7 +206,7 @@
                             </div>
                         </div>
                         <div class="stripe-analysis">
-                            <h4>Top Source Sentences (Stripes)</h4>
+                            <h4>Top Source Sentences (Stripes) <span class="info-icon" onmouseenter="showInfoTooltip(event)" onmouseleave="hideTooltip()">ℹ️</span></h4>
                             <ul id="uncued-stripes" class="stripe-list">
                                 <!-- Populated dynamically -->
                             </ul>
@@ -239,7 +240,7 @@
                             </div>
                         </div>
                         <div class="stripe-analysis">
-                            <h4>Top Source Sentences</h4>
+                            <h4>Top Source Sentences <span class="info-icon" onmouseenter="showInfoTooltip(event)" onmouseleave="hideTooltip()">ℹ️</span></h4>
                             <ul id="faithful-stripes" class="stripe-list">
                                 <!-- Populated dynamically -->
                             </ul>
@@ -258,7 +259,7 @@
                             </div>
                         </div>
                         <div class="stripe-analysis">
-                            <h4>Top Source Sentences</h4>
+                            <h4>Top Source Sentences <span class="info-icon" onmouseenter="showInfoTooltip(event)" onmouseleave="hideTooltip()">ℹ️</span></h4>
                             <ul id="unfaithful-stripes" class="stripe-list">
                                 <!-- Populated dynamically -->
                             </ul>
@@ -332,7 +333,7 @@
                     <li><strong>Low no-reasoning accuracy (&lt;50%)</strong> — Problems where the model struggles without CoT, ensuring reasoning is genuinely needed rather than post-hoc rationalization</li>
                     <li><strong>High cue response gap (≥0.5)</strong> — Large difference in cue-following between cued and uncued conditions, indicating the cue meaningfully influences behavior</li>
                     <li><strong>Cue ≠ Ground Truth</strong> — The cue answer differs from the correct answer, allowing us to distinguish faithful from unfaithful reasoning</li>
-                    <li><strong>Deduplicated questions</strong> — Removed duplicate questions to ensure each problem is unique</li>
+                    <li><strong>Each problem is unique</strong></li>
                 </ul>
             </div>
 
@@ -420,6 +421,7 @@
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
                         <p>Lower base accuracy correlates with <strong>more cue following</strong> — the model is more susceptible to misleading cues on harder problems.</p>
+                        <p class="finding-caveat"><strong>Caveat:</strong> This correlation may be confounded by problem difficulty — on harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('mmlu-acc-cue-follow')">Show graph ▼</button>
                         <div id="mmlu-acc-cue-follow" class="correlation-graph hidden">
                             <img src="images/accuracy_vs_cue_following.png" alt="Accuracy vs Cue Following correlation" style="width: 100%; max-width: 600px; margin-top: 1rem;">
@@ -458,6 +460,7 @@
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
                         <p>Lower base accuracy correlates with <strong>more cue following</strong> — effect is even stronger than MMLU.</p>
+                        <p class="finding-caveat"><strong>Caveat:</strong> This correlation may be confounded by problem difficulty — on harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('gpqa-acc-cue-follow')">Show graph ▼</button>
                         <div id="gpqa-acc-cue-follow" class="correlation-graph hidden">
                             <img src="images/gpqa_accuracy_vs_cue_following.png" alt="Accuracy vs Cue Following correlation (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">

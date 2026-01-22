@@ -16,6 +16,9 @@ let selectedFvuHead = null;  // For faithful vs unfaithful section
 // Allowed PIs for MMLU (only show these)
 const ALLOWED_MMLU_PIS = [91, 152, 188, 19, 151, 182, 191];
 
+// Allowed PIs for GPQA (exclude 101 and 134)
+const ALLOWED_GPQA_PIS = [21, 100, 107, 116, 129, 160, 162, 172];
+
 // DOM Elements
 const datasetSelect = document.getElementById('dataset-select');
 const categoryCheckboxes = document.querySelectorAll('#category-checkboxes input[type="checkbox"]');
@@ -158,6 +161,11 @@ function updatePIDropdown() {
     // Filter MMLU to only allowed PIs
     if (currentDataset === 'mmlu') {
         problems = problems.filter(p => ALLOWED_MMLU_PIS.includes(p.pi));
+    }
+
+    // Filter GPQA to only allowed PIs
+    if (currentDataset === 'gpqa') {
+        problems = problems.filter(p => ALLOWED_GPQA_PIS.includes(p.pi));
     }
     
     // Sort by PI
@@ -323,20 +331,24 @@ function headHasCueInTopSources(attnData, layer, head, condition) {
     if (!rolloutData) return false;
     
     const headData = conditionAttn[headKey];
-    const matrix = headData.matrix;
+    let matrix = headData.matrix;
     const allSentences = rolloutData.sentences || [];
     const fullPromptLen = Math.min(rolloutData.prompt_len || 0, allSentences.length);
-    
+
     // In reasoning mode, only show reasoning sentences (no prompt)
     let sentences, promptLen;
     if (currentAttentionMode === 'reasoning') {
         sentences = allSentences.slice(fullPromptLen);
         promptLen = 0;
+        // Also crop the matrix to only include reasoning portion
+        if (matrix && matrix.length > fullPromptLen) {
+            matrix = matrix.slice(fullPromptLen).map(row => row.slice(fullPromptLen));
+        }
     } else {
         sentences = allSentences;
         promptLen = fullPromptLen;
     }
-    
+
     // Find top source sentences (stripes) and check if any contain cues
     const stripes = findStripes(matrix, sentences, promptLen, condition);
     return stripes.some(stripe => stripe.isCue);
@@ -362,13 +374,29 @@ function updateReceiverHeads() {
     const cuedKey = currentAttentionMode === 'reasoning' ? 'cued_reasoning' : 'cued';
     const uncuedKey = currentAttentionMode === 'reasoning' ? 'uncued_reasoning' : 'uncued';
 
+    // Track if we're falling back to per-PI heads
+    let usingFallback = false;
+    let fallbackReason = '';
+
     if (currentHeadsSource === 'aggregate' && problem) {
         // Use aggregate heads for the problem's category
         const category = problem.category;
         const aggregateData = DATA.aggregate_heads?.[currentDataset]?.[category];
 
         if (aggregateData) {
-            // Aggregate heads use keys: top_cued_heads, top_uncued_heads
+            // Check for reasoning-specific aggregate heads first
+            const aggCuedKey = currentAttentionMode === 'reasoning' ? 'top_cued_reasoning_heads' : 'top_cued_heads';
+            const aggUncuedKey = currentAttentionMode === 'reasoning' ? 'top_uncued_reasoning_heads' : 'top_uncued_heads';
+
+            let aggCuedHeads = aggregateData[aggCuedKey] || [];
+            let aggUncuedHeads = aggregateData[aggUncuedKey] || [];
+
+            // If no reasoning-specific aggregate heads, fall back to full aggregate heads
+            if (currentAttentionMode === 'reasoning' && aggCuedHeads.length === 0) {
+                aggCuedHeads = aggregateData.top_cued_heads || [];
+                aggUncuedHeads = aggregateData.top_uncued_heads || [];
+            }
+
             // Filter to only include heads that have matrices available for this PI
             const cuedAttn = currentAttentionMode === 'reasoning'
                 ? (attnData.cued_attention_reasoning || attnData.cued_attention)
@@ -380,16 +408,18 @@ function updateReceiverHeads() {
             const availableCuedHeads = cuedAttn ? new Set(Object.keys(cuedAttn)) : new Set();
             const availableUncuedHeads = uncuedAttn ? new Set(Object.keys(uncuedAttn)) : new Set();
 
-            cuedHeads = (aggregateData.top_cued_heads || []).filter(h =>
+            cuedHeads = aggCuedHeads.filter(h =>
                 availableCuedHeads.has(`L${h[0][0]}-H${h[0][1]}`)
             );
-            uncuedHeads = (aggregateData.top_uncued_heads || []).filter(h =>
+            uncuedHeads = aggUncuedHeads.filter(h =>
                 availableUncuedHeads.has(`L${h[0][0]}-H${h[0][1]}`)
             );
 
             // Fall back to per-PI heads if no aggregate heads have matrices
             if (cuedHeads.length === 0) {
                 cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
+                usingFallback = true;
+                fallbackReason = 'Aggregate heads not available for this PI in current mode. Showing per-PI heads.';
             }
             if (uncuedHeads.length === 0) {
                 uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
@@ -398,11 +428,24 @@ function updateReceiverHeads() {
             // Fall back to per-PI heads if aggregate not available
             cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
             uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
+            usingFallback = true;
+            fallbackReason = 'Aggregate data not available for this category.';
         }
     } else {
         // Use per-PI heads (single)
         cuedHeads = attnData.top_heads[cuedKey] || attnData.top_heads.cued || [];
         uncuedHeads = attnData.top_heads[uncuedKey] || attnData.top_heads.uncued || [];
+    }
+
+    // Show/hide fallback note
+    const fallbackNoteEl = document.getElementById('heads-fallback-note');
+    if (fallbackNoteEl) {
+        if (usingFallback) {
+            fallbackNoteEl.textContent = fallbackReason;
+            fallbackNoteEl.classList.remove('hidden');
+        } else {
+            fallbackNoteEl.classList.add('hidden');
+        }
     }
 
     // Find shared heads
@@ -667,7 +710,7 @@ function updateFvuMatrix(type, attnData, selectedHead) {
     }
     
     const headData = attentionData[headKey];
-    const matrix = headData.matrix;
+    let matrix = headData.matrix;
     const allSentences = rolloutData.sentences || [];
     // Cap prompt_len to number of sentences (fix for bad data)
     const fullPromptLen = Math.min(rolloutData.prompt_len || 0, allSentences.length);
@@ -677,6 +720,10 @@ function updateFvuMatrix(type, attnData, selectedHead) {
     if (currentAttentionMode === 'reasoning') {
         sentences = allSentences.slice(fullPromptLen);  // Only reasoning sentences
         promptLen = 0;  // No prompt in reasoning-only view
+        // Also crop the matrix to only include reasoning portion
+        if (matrix && matrix.length > fullPromptLen) {
+            matrix = matrix.slice(fullPromptLen).map(row => row.slice(fullPromptLen));
+        }
     } else {
         sentences = allSentences;
         promptLen = fullPromptLen;
@@ -727,7 +774,7 @@ function updateAttentionMatrix(condition) {
     }
 
     const headData = conditionAttn[headKey];
-    const matrix = headData.matrix;
+    let matrix = headData.matrix;
     const allSentences = rolloutData.sentences || [];
     // Cap prompt_len to number of sentences (fix for bad data)
     const fullPromptLen = Math.min(rolloutData.prompt_len || 0, allSentences.length);
@@ -745,6 +792,10 @@ function updateAttentionMatrix(condition) {
     if (currentAttentionMode === 'reasoning') {
         sentences = allSentences.slice(fullPromptLen);  // Only reasoning sentences
         promptLen = 0;  // No prompt in reasoning-only view
+        // Also crop the matrix to only include reasoning portion
+        if (matrix && matrix.length > fullPromptLen) {
+            matrix = matrix.slice(fullPromptLen).map(row => row.slice(fullPromptLen));
+        }
     } else {
         sentences = allSentences;
         promptLen = fullPromptLen;
@@ -1062,6 +1113,7 @@ function renderStripes(container, stripes, condition) {
         html += `
             <li>
                 <span class="stripe-idx">[${stripe.label}]</span>
+                <span class="stripe-attn">[Attn: ${stripe.sum.toFixed(2)}]</span>
                 <span class="${finalClass}">
                     ${escapeHtml(stripe.sentence.slice(0, 100))}${stripe.sentence.length > 100 ? '...' : ''}
                     ${cueMarker}
@@ -1072,14 +1124,14 @@ function renderStripes(container, stripes, condition) {
 
     // Render cue sentences not in top sources below with header
     if (cueNotInTop.length > 0) {
-        html += `<li class="cue-not-in-top-header">Cue mention (not in top sources): <span class="info-icon" onmouseenter="showInfoTooltip(event)" onmouseleave="hideTooltip()">ℹ️</span></li>`;
+        html += `<li class="cue-not-in-top-header">Cue mention (not in top sources):</li>`;
         cueNotInTop.forEach(stripe => {
             html += `
                 <li class="cue-not-in-top-item">
                     <span class="stripe-idx">[${stripe.label}]</span>
+                    <span class="stripe-attn">[Attn: ${stripe.sum.toFixed(2)}]</span>
                     <span class="stripe-text cue-sentence">
                         ${escapeHtml(stripe.sentence.slice(0, 100))}${stripe.sentence.length > 100 ? '...' : ''}
-                        <span class="cue-attention-value">(attention: ${stripe.sum.toFixed(2)})</span>
                     </span>
                 </li>
             `;
