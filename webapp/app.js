@@ -1003,8 +1003,13 @@ function showInfoTooltip(event) {
     if (!tooltip) return;
 
     tooltip.innerHTML = `
-        <div style="font-size: 12px; line-height: 1.5; max-width: 280px;">
-            Attention = column sum = total attention this sentence receives from all later sentences, for the selected head (one layer, one head)
+        <div style="font-size: 12px; line-height: 1.5; max-width: 320px;">
+            <strong>Attention</strong> = average rank-normalized attention this sentence receives from later sentences (0-1 scale)
+            <ul style="margin: 8px 0 0 0; padding-left: 16px;">
+                <li>Favors sentences that consistently rank high as attention targets</li>
+                <li>A sentence needs to be in the top ranks across multiple later sentences</li>
+                <li>Controls for position bias (rank normalization per row)</li>
+            </ul>
         </div>
     `;
     tooltip.style.left = (event.clientX + 15) + 'px';
@@ -1020,21 +1025,28 @@ window.showInfoTooltip = showInfoTooltip;
 
 function findStripes(matrix, sentences, promptLen, condition) {
     if (!matrix || matrix.length === 0) return [];
-    
+
     const n = matrix.length;
     const stripes = [];
-    
-    // Calculate column sums (attention received by each source)
-    const colSums = new Array(n).fill(0);
-    
+
+    // Calculate column means (average attention received by each source from later sentences)
+    const colMeans = new Array(n).fill(0);
+
     for (let j = 0; j < n; j++) {
-        for (let i = j; i < n; i++) {  // Only lower triangle
-            colSums[j] += matrix[i][j];
+        let sum = 0;
+        let count = 0;
+        for (let i = j + 1; i < n; i++) {  // Only lower triangle (later attending to earlier)
+            const val = matrix[i][j];
+            if (val > 0) {  // Only count non-zero values
+                sum += val;
+                count++;
+            }
         }
+        colMeans[j] = count > 0 ? sum / count : 0;
     }
-    
-    // Sort by column sum
-    const indexed = colSums.map((sum, idx) => ({ idx, sum }));
+
+    // Sort by column mean
+    const indexed = colMeans.map((sum, idx) => ({ idx, sum }));
     indexed.sort((a, b) => b.sum - a.sum);
     
     // Find cue sentences
@@ -1070,7 +1082,7 @@ function findStripes(matrix, sentences, promptLen, condition) {
     if (condition === 'faithful') {
         for (const cueIdx of cueIdxs) {
             if (!topIndices.has(cueIdx)) {
-                const cueSum = colSums[cueIdx] || 0;
+                const cueSum = colMeans[cueIdx] || 0;
                 const isPrompt = cueIdx < promptLen;
                 stripes.push({
                     idx: cueIdx,

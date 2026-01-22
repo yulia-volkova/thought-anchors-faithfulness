@@ -26,4 +26,5 @@ build/
 # Jupyter
 .ipynb_checkpoints/
 
-f
+# Generated data
+analysis_results.json

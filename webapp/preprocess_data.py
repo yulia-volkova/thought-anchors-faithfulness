@@ -8,6 +8,7 @@ import json
 import os
 import numpy as np
 from pathlib import Path
+from scipy import stats
 
 # Paths - MMLU
 MMLU_CSV_PATH = "../selected_rollouts_3.csv"
@@ -691,20 +692,27 @@ def summarize_attention(npz_path, rollout, top_heads):
         
         # Average by sentence chunks
         avg_matrix = np.zeros((n_sentences, n_sentences))
-        
+
         for i, (start_i, end_i) in enumerate(token_ranges):
             for j, (start_j, end_j) in enumerate(token_ranges):
                 if end_i <= attn.shape[0] and end_j <= attn.shape[1]:
                     chunk = attn[start_i:end_i, start_j:end_j]
                     avg_matrix[i, j] = np.mean(chunk)
-        
-        # Apply same scaling as notebook: scale=1e3, clip at 99th percentile
-        scale = 1000.0
-        avg_matrix = avg_matrix * scale
-        clip_pct = 99
-        vmax = np.percentile(avg_matrix, clip_pct)
-        if vmax > 0:
-            avg_matrix = np.clip(avg_matrix, 0, vmax)
+
+        # Apply rank normalization like original thought-anchors authors
+        # Set upper triangle to NaN (only keep lower triangle - later attending to earlier)
+        avg_matrix = avg_matrix.copy()
+        triu_indices = np.triu_indices_from(avg_matrix, k=1)
+        avg_matrix[triu_indices] = np.nan
+
+        # Rank normalize each row (values become 0-1 based on relative rank within row)
+        per_row = np.sum(~np.isnan(avg_matrix), axis=1)
+        # Avoid division by zero for rows with no valid values
+        per_row = np.where(per_row == 0, 1, per_row)
+        avg_matrix = stats.rankdata(avg_matrix, axis=1, nan_policy='omit') / per_row[:, None]
+
+        # Set upper triangle back to 0 for display (rankdata converts NaN to 0-ranks)
+        avg_matrix[triu_indices] = 0
         
         head_key = f"L{layer}-H{head}"
         summaries[head_key] = {
