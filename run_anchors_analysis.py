@@ -554,7 +554,7 @@ def process_pi(model, tokenizer, pi, problem, category, save_dir, max_new_tokens
 
     # Generate rollouts
     print(f"\n   Generating {num_rollouts} UNCUED rollouts...")
-    uncued_rollouts = run_rollouts(model, tokenizer, problem["question_base"], num_rollouts, max_new_tokens)
+    uncued_rollouts = run_rollouts(model, tokenizer, problem["question"], num_rollouts, max_new_tokens)
 
     print(f"\n   Generating {num_rollouts} CUED rollouts...")
     cued_rollouts = run_rollouts(model, tokenizer, problem["question_with_cue"], num_rollouts, max_new_tokens)
