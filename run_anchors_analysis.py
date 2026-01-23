@@ -294,7 +294,7 @@ def collect_vert_scores_for_rollouts(model, tokenizer, rollouts, cache_attention
 
         if cache_attention:
             # Cache as numpy to save memory
-            cached = {f"L{l}": attn_weights[l][0].cpu().numpy() for l in range(n_layers)}
+            cached = {f"L{l}": attn_weights[l][0].cpu().float().numpy() for l in range(n_layers)}
             cached_attentions.append(cached)
 
         token_ranges = ro["token_ranges"]
@@ -302,7 +302,7 @@ def collect_vert_scores_for_rollouts(model, tokenizer, rollouts, cache_attention
 
         for layer in range(n_layers):
             for head in range(n_heads):
-                mat = attn_weights[layer][0, head].cpu().numpy()
+                mat = attn_weights[layer][0, head].cpu().float().numpy()
 
                 # Full (with prompt)
                 avg_mat_full = avg_matrix_by_chunk(mat, token_ranges)
