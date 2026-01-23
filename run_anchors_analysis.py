@@ -61,7 +61,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Analysis parameters
 NUM_ROLLOUTS_PER_CONDITION = 5
-TOP_K_RECEIVER_HEADS = 10
+TOP_K_RECEIVER_HEADS = 5
 DROP_FIRST = 1
 PROXIMITY_IGNORE = 3
 INCLUDE_PROMPT = True
