@@ -614,9 +614,11 @@
 
                         <div class="diff-item">
                             <h5>3. Kurtosis Computation</h5>
-                            <p><code>compute_kurtosis_per_head</code> vs original <code>get_3d_ar_kurtosis</code></p>
+                            <p><code>compute_kurtosis_per_head</code> / <code>aggregate_kurtosis</code> matches original
+                               <a href="https://github.com/interp-reasoning/thought-anchors/blob/main/whitebox-analyses/attention_analysis/receiver_head_funcs.py" target="_blank"><code>get_top_k_receiver_heads</code></a></p>
                             <ul>
-                                <li>We use dict <code>{(layer,head): [scores]}</code>; original uses 3D numpy array (data structure difference only)</li>
+                                <li><strong>Same approach:</strong> Kurtosis is computed per rollout (across sentences), then averaged across all rollouts</li>
+                                <li>Data structure differs: we use dict <code>{(layer,head): [scores]}</code>; original uses 3D numpy array</li>
                             </ul>
                         </div>
 

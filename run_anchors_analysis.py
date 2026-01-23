@@ -150,14 +150,21 @@ def get_attn_vert_scores(avg_mat, proximity_ignore=PROXIMITY_IGNORE, drop_first=
 
 
 def compute_kurtosis_per_head(rollout_vert_scores):
-    """Compute kurtosis by pooling all scores from all rollouts (matches original)."""
+    """
+    Compute kurtosis per rollout, then average across rollouts.
+
+    Matches original thought-anchors approach: kurtosis is computed for each rollout's
+    vertical scores (across sentences), then averaged across all rollouts.
+    See: github.com/interp-reasoning/thought-anchors/blob/main/whitebox-analyses/attention_analysis/receiver_head_funcs.py
+    """
     head2kurt = {}
     for lh, vs_list in rollout_vert_scores.items():
-        # Pool all scores from all rollouts into one array
-        vs_pooled = np.concatenate([vs for vs in vs_list if len(vs) > 0])
-        if len(vs_pooled) < 4:  # Need enough points for kurtosis
+        min_len = min(len(vs) for vs in vs_list)
+        if min_len == 0:
             continue
-        head2kurt[lh] = stats.kurtosis(vs_pooled, fisher=True, bias=True, nan_policy="omit")
+        vs_stack = np.stack([vs[:min_len] for vs in vs_list], axis=0)
+        kurt_per_rollout = stats.kurtosis(vs_stack, axis=1, fisher=True, bias=True, nan_policy="omit")
+        head2kurt[lh] = np.nanmean(kurt_per_rollout)
     return head2kurt
 
 
@@ -341,36 +348,108 @@ def check_professor_mention(rollout):
 
 
 def select_rollout_for_saving(rollouts, condition, cached_attentions=None):
-    """Select one rollout for saving with attention."""
-    if condition == "cued":
-        # Prefer rollouts that mention professor
-        for i, ro in enumerate(rollouts):
-            if check_professor_mention(ro):
-                return i, ro, cached_attentions[i] if cached_attentions else None
+    """Select one rollout for saving with attention.
+
+    Returns: (selected_idx, rollout, attention, mention_indices)
+    """
+    mention_indices = [i for i, ro in enumerate(rollouts) if check_professor_mention(ro)]
+
+    if condition == "cued" and mention_indices:
+        # Prefer first rollout that mentions professor
+        idx = mention_indices[0]
+        return idx, rollouts[idx], cached_attentions[idx] if cached_attentions else None, mention_indices
+
     # Default to first rollout
-    return 0, rollouts[0], cached_attentions[0] if cached_attentions else None
+    return 0, rollouts[0], cached_attentions[0] if cached_attentions else None, mention_indices
 
 
-def save_analysis_results(save_path, config, rollout_data, head2verts_data, top_heads_data, attention_data=None):
-    """Save all analysis results."""
+def save_rollout_to_dir(rollout, save_dir, filename="rollout.json"):
+    """Save a single rollout's metadata to a directory."""
+    os.makedirs(save_dir, exist_ok=True)
+    ro_save = {
+        "text": rollout["text"],
+        "sentences": rollout["sentences"],
+        "token_ranges": rollout["token_ranges"],
+        "prompt_len": rollout["prompt_len"],
+        "prompt_len_tokens": rollout.get("prompt_len_tokens", 0),
+    }
+    with open(os.path.join(save_dir, filename), "w") as f:
+        json.dump(ro_save, f, indent=2)
+
+
+def save_attention_to_dir(attn_weights, save_dir, top_heads, filename="attention.npz"):
+    """Save attention weights for specified heads only."""
+    os.makedirs(save_dir, exist_ok=True)
+    attn_dict = {}
+    for (layer, head) in top_heads:
+        key = f"L{layer}_H{head}"
+        if layer < len(attn_weights):
+            attn_dict[key] = attn_weights[layer][0, head].cpu().numpy()
+    np.savez_compressed(os.path.join(save_dir, filename), **attn_dict)
+
+
+def save_analysis_results(save_path, config, cued_rollouts, uncued_rollouts,
+                          cued_attentions, uncued_attentions,
+                          head2verts_data, top_heads_data):
+    """
+    Save all analysis results with proper directory structure.
+
+    Structure matches anchors_unified.ipynb:
+    - {save_path}/config.json
+    - {save_path}/top_heads.json
+    - {save_path}/cued/rollout.json, attention.npz
+    - {save_path}/uncued/rollout.json, attention.npz
+    - {save_path}/cued_head2verts.json, cued_head2verts_reasoning.json
+    - {save_path}/uncued_head2verts.json, uncued_head2verts_reasoning.json
+    - {save_path}/faithful_vs_unfaithful/faithful/, unfaithful/ (if applicable)
+    """
     os.makedirs(save_path, exist_ok=True)
+
+    # Get all heads to save (combine cued + uncued + reasoning heads)
+    all_heads = set()
+    for key in ["cued", "uncued", "cued_reasoning", "uncued_reasoning"]:
+        if key in top_heads_data:
+            for h, _ in top_heads_data[key]:
+                all_heads.add(tuple(h) if isinstance(h, list) else h)
+    all_heads = list(all_heads)
+    print(f"    Saving attention for {len(all_heads)} unique heads")
+
+    # Select rollouts to save
+    cued_idx, cued_rollout, cued_attn, cued_mentions = select_rollout_for_saving(
+        cued_rollouts, "cued", cued_attentions
+    )
+    uncued_idx, uncued_rollout, uncued_attn, _ = select_rollout_for_saving(
+        uncued_rollouts, "uncued", uncued_attentions
+    )
+
+    # Find unfaithful cued rollouts (those that don't mention professor)
+    all_cued_indices = set(range(len(cued_rollouts)))
+    cued_unfaithful_indices = list(all_cued_indices - set(cued_mentions))
+    has_faithful_vs_unfaithful = len(cued_mentions) > 0 and len(cued_unfaithful_indices) > 0
+
+    # Update config with professor mention stats
+    config.update({
+        "cued_selected_rollout_idx": cued_idx,
+        "uncued_selected_rollout_idx": uncued_idx,
+        "cued_professor_mention_indices": cued_mentions,
+        "cued_professor_mention_proportion": len(cued_mentions) / len(cued_rollouts) if cued_rollouts else 0,
+        "cued_unfaithful_indices": cued_unfaithful_indices,
+        "has_faithful_vs_unfaithful": has_faithful_vs_unfaithful,
+    })
 
     # Save config
     with open(os.path.join(save_path, "config.json"), "w") as f:
         json.dump(config, f, indent=2)
 
-    # Save rollout data (without tensors)
-    for condition in ["cued", "uncued"]:
-        ro = rollout_data[condition]
-        ro_save = {
-            "text": ro["text"],
-            "sentences": ro["sentences"],
-            "token_ranges": ro["token_ranges"],
-            "prompt_len": ro["prompt_len"],
-            "prompt_len_tokens": ro["prompt_len_tokens"],
-        }
-        with open(os.path.join(save_path, f"{condition}_rollout.json"), "w") as f:
-            json.dump(ro_save, f, indent=2)
+    # Save combined top heads (matches notebook format)
+    top_heads_combined = {
+        "cued": [(list(h), float(k)) for h, k in top_heads_data.get("cued", [])],
+        "uncued": [(list(h), float(k)) for h, k in top_heads_data.get("uncued", [])],
+        "cued_reasoning": [(list(h), float(k)) for h, k in top_heads_data.get("cued_reasoning", [])],
+        "uncued_reasoning": [(list(h), float(k)) for h, k in top_heads_data.get("uncued_reasoning", [])],
+    }
+    with open(os.path.join(save_path, "top_heads.json"), "w") as f:
+        json.dump(top_heads_combined, f, indent=2)
 
     # Save head2verts (serialized)
     for key, h2v in head2verts_data.items():
@@ -378,19 +457,51 @@ def save_analysis_results(save_path, config, rollout_data, head2verts_data, top_
         with open(os.path.join(save_path, f"{key}.json"), "w") as f:
             json.dump(serialized, f)
 
-    # Save top heads
-    for key, heads in top_heads_data.items():
-        serialized = [(list(h), float(k)) for h, k in heads]
-        with open(os.path.join(save_path, f"{key}.json"), "w") as f:
-            json.dump(serialized, f, indent=2)
+    # Save cued rollout and attention in subdirectory
+    cued_dir = os.path.join(save_path, "cued")
+    print(f"    Saving cued rollout {cued_idx}...")
+    save_rollout_to_dir(cued_rollout, cued_dir)
+    if cued_attn is not None:
+        save_attention_to_dir(cued_attn, cued_dir, all_heads)
 
-    # Save attention data (numpy)
-    if attention_data:
-        for condition, attn in attention_data.items():
-            if attn:
-                np.savez_compressed(os.path.join(save_path, f"{condition}_attention.npz"), **attn)
+    # Save uncued rollout and attention in subdirectory
+    uncued_dir = os.path.join(save_path, "uncued")
+    print(f"    Saving uncued rollout {uncued_idx}...")
+    save_rollout_to_dir(uncued_rollout, uncued_dir)
+    if uncued_attn is not None:
+        save_attention_to_dir(uncued_attn, uncued_dir, all_heads)
 
-    print(f"    Saved results to {save_path}")
+    # Save faithful vs unfaithful comparison if both exist
+    if has_faithful_vs_unfaithful:
+        print(f"\n    Saving faithful vs unfaithful comparison...")
+        faithful_idx = cued_mentions[0]
+        unfaithful_idx = cued_unfaithful_indices[0]
+        config["faithful_cued_rollout_idx"] = faithful_idx
+        config["unfaithful_cued_rollout_idx"] = unfaithful_idx
+
+        # Re-save config with faithful/unfaithful indices
+        with open(os.path.join(save_path, "config.json"), "w") as f:
+            json.dump(config, f, indent=2)
+
+        fvu_dir = os.path.join(save_path, "faithful_vs_unfaithful")
+
+        # Save faithful rollout
+        faithful_dir = os.path.join(fvu_dir, "faithful")
+        print(f"      Saving faithful rollout {faithful_idx}...")
+        save_rollout_to_dir(cued_rollouts[faithful_idx], faithful_dir)
+        if cued_attentions and faithful_idx < len(cued_attentions):
+            save_attention_to_dir(cued_attentions[faithful_idx], faithful_dir, all_heads)
+
+        # Save unfaithful rollout
+        unfaithful_dir = os.path.join(fvu_dir, "unfaithful")
+        print(f"      Saving unfaithful rollout {unfaithful_idx}...")
+        save_rollout_to_dir(cued_rollouts[unfaithful_idx], unfaithful_dir)
+        if cued_attentions and unfaithful_idx < len(cued_attentions):
+            save_attention_to_dir(cued_attentions[unfaithful_idx], unfaithful_dir, all_heads)
+
+        print(f"      [OK] Faithful vs Unfaithful comparison saved!")
+
+    print(f"    [OK] Saved results to {save_path}")
 
 
 def load_head2verts(pi, condition, reasoning_only, save_dir, num_rollouts, top_k, drop_first):
@@ -414,9 +525,13 @@ def load_head2verts(pi, condition, reasoning_only, save_dir, num_rollouts, top_k
 def aggregate_kurtosis(pi_list, condition, reasoning_only, save_dir, num_rollouts, top_k, drop_first):
     """
     Compute aggregate kurtosis from multiple PIs.
-    Pools all vertical scores from all rollouts from all PIs, then computes kurtosis once (matches original).
+    Computes kurtosis PER ROLLOUT, then averages across all rollouts from all PIs.
+
+    Matches original thought-anchors approach: kurtosis is computed for each problem/rollout,
+    then averaged across all problems.
+    See: github.com/interp-reasoning/thought-anchors/blob/main/whitebox-analyses/attention_analysis/receiver_head_funcs.py
     """
-    head2scores = defaultdict(list)
+    head2kurt_values = defaultdict(list)  # head -> list of per-rollout kurtosis values
     mode_str = "reasoning-only" if reasoning_only else "full"
 
     for pi in pi_list:
@@ -427,19 +542,15 @@ def aggregate_kurtosis(pi_list, condition, reasoning_only, save_dir, num_rollout
             continue
 
         for (layer, head), vs_list in h2v.items():
-            for vs in vs_list:
-                if len(vs) > 0:
-                    head2scores[(layer, head)].extend(vs.tolist())
+            for vs in vs_list:  # Each rollout independently
+                if len(vs) > 3:  # Need enough points for kurtosis
+                    k = stats.kurtosis(vs, fisher=True, bias=True, nan_policy="omit")
+                    if not np.isnan(k):
+                        head2kurt_values[(layer, head)].append(k)
 
-    # Compute kurtosis on pooled scores
-    head2kurt = {}
-    for h, scores in head2scores.items():
-        if len(scores) >= 4:
-            k = stats.kurtosis(scores, fisher=True, bias=True, nan_policy="omit")
-            if not np.isnan(k):
-                head2kurt[h] = k
-
-    return head2kurt, head2scores
+    # Average kurtosis across ALL rollouts from ALL PIs
+    head2kurt = {h: np.mean(ks) for h, ks in head2kurt_values.items() if len(ks) > 0}
+    return head2kurt, head2kurt_values
 
 
 def get_aggregate_top_heads(pi_list, condition, reasoning_only, save_dir, num_rollouts, top_k, drop_first):
@@ -595,37 +706,18 @@ def process_pi(model, tokenizer, pi, problem, category, save_dir, max_new_tokens
     top_cued_reasoning = select_top_heads(cued_head2kurt_reasoning, top_k=top_k,
                                            head2verts=cued_h2v_reasoning, min_max_vert=0.001)
 
-    # Select rollouts to save
-    uncued_idx, uncued_rollout, uncued_attn = select_rollout_for_saving(
-        uncued_rollouts, "uncued", uncued_attentions
-    )
-    cued_idx, cued_rollout, cued_attn = select_rollout_for_saving(
-        cued_rollouts, "cued", cued_attentions
-    )
-
-    # Check for professor mentions
-    cued_mentions = [i for i, ro in enumerate(cued_rollouts) if check_professor_mention(ro)]
-
-    # Save results
+    # Prepare config
     config = {
+        "generated_at": datetime.now().isoformat(),
         "pi": pi,
         "category": category,
         "gt_answer": problem["gt_answer"],
         "cue_answer": problem["cue_answer"],
-        "num_rollouts": num_rollouts,
-        "top_k": top_k,
+        "num_rollouts_per_condition": num_rollouts,
+        "top_k_receiver_heads": top_k,
         "drop_first": drop_first,
         "proximity_ignore": PROXIMITY_IGNORE,
         "include_prompt": INCLUDE_PROMPT,
-        "cued_rollout_idx": cued_idx,
-        "uncued_rollout_idx": uncued_idx,
-        "cued_professor_mentions": cued_mentions,
-        "timestamp": datetime.now().isoformat(),
-    }
-
-    rollout_data = {
-        "cued": cued_rollout,
-        "uncued": uncued_rollout,
     }
 
     head2verts_data = {
@@ -636,18 +728,19 @@ def process_pi(model, tokenizer, pi, problem, category, save_dir, max_new_tokens
     }
 
     top_heads_data = {
-        "top_cued": top_cued_full,
-        "top_uncued": top_uncued_full,
-        "top_cued_reasoning": top_cued_reasoning,
-        "top_uncued_reasoning": top_uncued_reasoning,
+        "cued": top_cued_full,
+        "uncued": top_uncued_full,
+        "cued_reasoning": top_cued_reasoning,
+        "uncued_reasoning": top_uncued_reasoning,
     }
 
-    attention_data = {
-        "cued": cued_attn,
-        "uncued": uncued_attn,
-    }
-
-    save_analysis_results(save_path, config, rollout_data, head2verts_data, top_heads_data, attention_data)
+    # Save results with new structure (includes faithful_vs_unfaithful if applicable)
+    save_analysis_results(
+        save_path, config,
+        cued_rollouts, uncued_rollouts,
+        cued_attentions, uncued_attentions,
+        head2verts_data, top_heads_data
+    )
 
     # Cleanup
     del uncued_rollouts, cued_rollouts
