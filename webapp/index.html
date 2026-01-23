@@ -597,7 +597,7 @@
                             <h5>1. Averaged Matrix Computation</h5>
                             <p><code>avg_matrix_by_chunk</code> vs original <code>_compute_averaged_matrix</code></p>
                             <ul>
-                                <li>We return <code>NaN</code> for empty regions; original returns <code>0</code></li>
+                                <li>We return <code>NaN</code> for empty regions; original returns <code>0</code> (minor difference)</li>
                                 <li>Simpler implementation without bounds checking (assumes valid inputs)</li>
                             </ul>
                         </div>
@@ -606,9 +606,6 @@
                             <h5>2. Vertical Score Calculation</h5>
                             <p><code>get_attn_vert_scores</code> vs original <code>get_vertical_scores</code></p>
                             <ul>
-                                <li><strong>No <code>control_depth</code></strong>: Original has option to rank-normalize attention
-                                    values per row, controlling for the fact that later sentences have more preceding sentences to
-                                    attend to. We use raw attention values.</li>
                                 <li><strong>Added <code>drop_first</code></strong>: We set first/last N scores to NaN to filter
                                     noisy boundary sentences (default N=1)</li>
                                 <li>Default <code>proximity_ignore=3</code> vs original's <code>20</code></li>
@@ -619,8 +616,7 @@
                             <h5>3. Kurtosis Computation</h5>
                             <p><code>compute_kurtosis_per_head</code> vs original <code>get_3d_ar_kurtosis</code></p>
                             <ul>
-                                <li>We use dict <code>{(layer,head): [scores]}</code>; original uses 3D numpy array</li>
-                                <li>We compute kurtosis per rollout then average; original computes directly on axis=2</li>
+                                <li>We use dict <code>{(layer,head): [scores]}</code>; original uses 3D numpy array (data structure difference only)</li>
                             </ul>
                         </div>
 
