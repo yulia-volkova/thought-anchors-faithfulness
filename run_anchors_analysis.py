@@ -78,7 +78,7 @@ CUE_PATTERNS = [
 # Imports from anchors_utils
 # =============================================================================
 
-from anchors_utils import split_solution_into_chunks, get_chunk_ranges, get_chunk_token_ranges
+from anchors_utils import split_solution_into_chunks, get_chunk_ranges, get_chunk_token_ranges, split_prompt_into_chunks
 
 
 # =============================================================================
@@ -241,24 +241,31 @@ def run_rollouts(model, tokenizer, prompt, num_rollouts, max_new_tokens, include
         generated_ids = outputs[0]
         generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
-        # Split into sentences/chunks
-        if include_prompt:
-            full_text = generated_text
-            prompt_text = tokenizer.decode(input_ids[0], skip_special_tokens=True)
-        else:
-            full_text = tokenizer.decode(generated_ids[prompt_len_tokens:], skip_special_tokens=True)
-            prompt_text = ""
+        # Get prompt text
+        prompt_text = tokenizer.decode(input_ids[0], skip_special_tokens=True)
 
-        sentences = split_solution_into_chunks(full_text)
-        prompt_sentences = split_solution_into_chunks(prompt_text) if prompt_text else []
+        # Split prompt into chunks
+        prompt_sentences = split_prompt_into_chunks(prompt_text) if include_prompt else []
+        prompt_ranges = get_chunk_ranges(prompt_text, prompt_sentences) if prompt_sentences else []
+        prompt_token_ranges = get_chunk_token_ranges(prompt_text, prompt_ranges, tokenizer) if prompt_sentences else []
         prompt_len = len(prompt_sentences)
 
-        # Get token ranges
-        token_ranges = get_chunk_token_ranges(tokenizer, sentences, generated_ids)
+        # Split generation into chunks
+        roll_sentences = split_solution_into_chunks(generated_text)
+        roll_ranges = get_chunk_ranges(generated_text, roll_sentences)
+        roll_token_ranges = get_chunk_token_ranges(generated_text, roll_ranges, tokenizer)
+
+        if include_prompt:
+            sentences = prompt_sentences + roll_sentences
+            token_ranges = prompt_token_ranges + roll_token_ranges
+        else:
+            sentences = roll_sentences
+            token_ranges = roll_token_ranges
+            prompt_len = 0
 
         rollout = {
             "ids": generated_ids,
-            "text": full_text,
+            "text": generated_text,
             "sentences": sentences,
             "token_ranges": token_ranges,
             "prompt_len": prompt_len,
