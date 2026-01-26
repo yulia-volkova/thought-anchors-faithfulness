@@ -117,6 +117,32 @@ function setupEventListeners() {
             headsSourceTooltip.classList.add('hidden');
         });
     }
+
+    // Setup tooltip for receiver heads definition in hypothesis
+    const receiverHeadsInfo = document.getElementById('receiver-heads-info');
+    const receiverHeadsTooltip = document.getElementById('receiver-heads-tooltip');
+    if (receiverHeadsInfo && receiverHeadsTooltip) {
+        receiverHeadsInfo.addEventListener('mouseenter', (e) => {
+            const rect = receiverHeadsInfo.getBoundingClientRect();
+            receiverHeadsTooltip.style.position = 'fixed';
+            receiverHeadsTooltip.style.top = (rect.bottom + 8) + 'px';
+            receiverHeadsTooltip.style.left = Math.max(10, rect.left - 150) + 'px';
+            receiverHeadsTooltip.classList.remove('hidden');
+        });
+        receiverHeadsInfo.addEventListener('mouseleave', (e) => {
+            setTimeout(() => {
+                if (!receiverHeadsTooltip.matches(':hover') && !receiverHeadsInfo.matches(':hover')) {
+                    receiverHeadsTooltip.classList.add('hidden');
+                }
+            }, 100);
+        });
+        receiverHeadsTooltip.addEventListener('mouseenter', () => {
+            receiverHeadsTooltip.classList.remove('hidden');
+        });
+        receiverHeadsTooltip.addEventListener('mouseleave', () => {
+            receiverHeadsTooltip.classList.add('hidden');
+        });
+    }
 }
 
 function updateUI() {

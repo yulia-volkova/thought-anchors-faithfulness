@@ -15,8 +15,8 @@
     --border-dark: #d0ccc5;
     
     /* Accent colors */
-    --accent-cued: #c45a3b;
-    --accent-cued-light: #f8ebe7;
+    --accent-cued: #e07830;
+    --accent-cued-light: #fdf0e6;
     --accent-uncued: #3b7cc4;
     --accent-uncued-light: #e7f0f8;
     --accent-gt: #3b8c5a;
@@ -67,6 +67,9 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    padding-top: 20px;
 }
 
 /* Container */
@@ -74,6 +77,9 @@ body {
     max-width: 1000px;
     margin: 0 auto;
     padding: var(--spacing-xl);
+    position: relative;
+    z-index: 1;
+    overflow: visible;
 }
 
 /* Header */
@@ -82,6 +88,60 @@ body {
     margin-bottom: var(--spacing-2xl);
     padding-bottom: var(--spacing-xl);
     border-bottom: 1px solid var(--border-color);
+    position: relative;
+    overflow: visible;
+}
+
+/* Main doodle behind header title - overlapping the title from left */
+.header-doodle-bg {
+    position: absolute;
+    top: -380px;
+    left: -200px;
+    width: 750px;
+    opacity: 0.55;
+    z-index: 0;
+    pointer-events: none;
+    transform: rotate(-5deg);
+}
+
+.header h1,
+.header .subtitle {
+    position: relative;
+    z-index: 1;
+}
+
+/* Background doodle decorations */
+.bg-doodles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    overflow: visible;
+}
+
+.bg-doodle {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* Hide all bg-doodles - only keep the header-doodle-bg */
+.bg-doodle {
+    display: none;
+}
+
+/* Make sure content is above doodles */
+.container {
+    position: relative;
+    z-index: 1;
+}
+
+@media (max-width: 1200px) {
+    .bg-doodles {
+        display: none;
+    }
 }
 
 .header h1 {
@@ -427,6 +487,39 @@ section h2 {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     padding: var(--spacing-lg);
+    position: relative;
+    overflow: visible;
+}
+
+/* Doodles for Receiver Heads section */
+.receiver-doodle-left {
+    position: absolute;
+    left: -380px;
+    top: -100px;
+    width: 420px;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 2;
+    transform: rotate(20deg);
+}
+
+.receiver-doodle-right {
+    position: absolute;
+    right: -280px;
+    top: 50px;
+    width: 450px;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 2;
+    transform: scaleX(-1);
+}
+
+.receiver-heads-section h2,
+.receiver-heads-section .section-desc,
+.receiver-heads-section .heads-comparison,
+.receiver-heads-section .shared-heads {
+    position: relative;
+    z-index: 1;
 }
 
 .heads-comparison {
@@ -1076,7 +1169,7 @@ section h2 {
 
 .correlation-graph {
     margin-top: var(--spacing-sm);
-    padding: var(--spacing-md);
+    padding: var(--spacing-lg);
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -1084,6 +1177,44 @@ section h2 {
 
 .correlation-graph.hidden {
     display: none;
+}
+
+.correlation-graph img {
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+}
+
+/* Larger graphs in Key Findings section */
+.key-findings-section .correlation-graph {
+    padding: var(--spacing-lg);
+    margin-top: var(--spacing-md);
+    background: var(--bg-primary);
+}
+
+.key-findings-section .correlation-graph img {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    display: block;
+}
+
+.key-findings-section .finding-card {
+    padding: var(--spacing-lg);
+    overflow: visible;
+}
+
+.key-findings-section .finding-card p {
+    max-width: none;
+    margin-bottom: var(--spacing-sm);
+}
+
+.key-findings-section .finding-header {
+    margin-bottom: var(--spacing-md);
+}
+
+.key-findings-section .expand-graph-btn {
+    margin-top: var(--spacing-md);
 }
 
 /* Settings Table */
@@ -1369,3 +1500,102 @@ section h2 {
 .sidenote-source a:hover {
     text-decoration: underline;
 }
+
+/* ==============================================
+   Key Findings Section
+   ============================================== */
+
+.key-findings-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-shared);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.key-findings-section h2 {
+    font-family: var(--font-serif);
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.key-findings-section .section-desc {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.key-findings-section .findings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.key-findings-section .finding-card {
+    padding: var(--spacing-md);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.key-findings-section .finding-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.key-findings-section .finding-metric {
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--accent-shared);
+}
+
+.key-findings-section .finding-pval {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.key-findings-section .finding-card p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-sm);
+}
+
+.key-findings-section .finding-caveat {
+    background: #fff8e6;
+    border-left: 3px solid #f0ad4e;
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm);
+    font-size: 0.85rem !important;
+    color: #856404;
+    margin-top: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.key-findings-section .expand-graph-btn {
+    margin-top: auto;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--accent-shared);
+    background: transparent;
+    border: 1px solid var(--accent-shared);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    align-self: flex-start;
+}
+
+.key-findings-section .expand-graph-btn:hover {
+    background: var(--accent-shared-light);
+}
+
