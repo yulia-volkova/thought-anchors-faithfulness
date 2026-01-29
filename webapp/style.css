@@ -158,6 +158,34 @@ body {
     color: var(--text-secondary);
 }
 
+/* Author Line */
+.author-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: var(--spacing-sm);
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+.author-links {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.author-links a {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+}
+
+.author-links a:hover {
+    color: var(--accent-cued);
+}
+
 /* Hypothesis & Conclusion Sections */
 .hypothesis-section,
 .conclusion-text-section {
@@ -482,24 +510,38 @@ section h2 {
 }
 
 /* Receiver Heads Section */
-.receiver-heads-section {
+/* Unified container for Receiver Heads + Attention */
+.unified-attention-container {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    position: relative;
+    z-index: 1;
+}
+
+.receiver-heads-section {
     position: relative;
     overflow: visible;
 }
 
 /* Doodles for Receiver Heads section */
+/* Doodle wrapper - positioned relative to allow absolute positioning of doodles */
+.doodle-wrapper {
+    position: relative;
+    height: 0;
+    z-index: 0;
+}
+
 .receiver-doodle-left {
     position: absolute;
     left: -380px;
-    top: -100px;
+    top: 0;
     width: 420px;
     opacity: 0.5;
     pointer-events: none;
-    z-index: 2;
+    z-index: 0;
     transform: rotate(20deg);
 }
 
@@ -510,7 +552,7 @@ section h2 {
     width: 450px;
     opacity: 0.5;
     pointer-events: none;
-    z-index: 2;
+    z-index: 10;
     transform: scaleX(-1);
 }
 
@@ -536,10 +578,11 @@ section h2 {
 }
 
 .heads-column h3 {
+    font-family: var(--font-serif);
     font-size: 1rem;
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
-    color: var(--text-secondary);
+    color: var(--text-primary);
 }
 
 .column-note {
@@ -602,7 +645,6 @@ section h2 {
 
 .shared-heads {
     padding-top: var(--spacing-md);
-    border-top: 1px solid var(--border-color);
     font-size: 0.9rem;
 }
 
@@ -622,6 +664,22 @@ section h2 {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     padding: var(--spacing-lg);
+}
+
+/* Remove box styling when inside unified container */
+.unified-attention-container .receiver-heads-section,
+.unified-attention-container .attention-section {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: var(--spacing-lg);
+}
+
+.unified-attention-container .attention-section {
+    margin-bottom: 0;
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
 }
 
 .attention-comparison {
@@ -815,10 +873,9 @@ section h2 {
 
 /* Conclusion Section */
 .conclusion-section {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--spacing-lg);
 }
 
 .summary-stats {
@@ -1508,7 +1565,6 @@ section h2 {
 .key-findings-section {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-left: 4px solid var(--accent-shared);
     border-radius: var(--radius-md);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-xl);
@@ -1571,6 +1627,17 @@ section h2 {
     margin-bottom: var(--spacing-sm);
 }
 
+.key-findings-section .finding-list {
+    margin: var(--spacing-sm) 0;
+    padding-left: 1.5rem;
+}
+
+.key-findings-section .finding-list li {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-xs);
+}
+
 .key-findings-section .finding-caveat {
     background: #fff8e6;
     border-left: 3px solid #f0ad4e;
@@ -1605,11 +1672,8 @@ section h2 {
    ============================================== */
 .tldr-section {
     margin-bottom: var(--spacing-xl);
-    padding: var(--spacing-lg);
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-    border-left: 4px solid var(--accent-shared);
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .tldr-section h2 {
@@ -1750,6 +1814,73 @@ section h2 {
     padding: 2px 5px;
     border-radius: 3px;
 }
+
+/* Visualization intro text */
+.viz-intro {
+    font-family: var(--font-serif);
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: var(--spacing-lg) 0 var(--spacing-md) 0;
+}
+
+.viz-intro-light {
+    font-weight: 400;
+}
+
+/* Question ID box */
+.question-id-box {
+    display: inline-block;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+.question-id-box .faithful-label {
+    color: var(--accent-gt);
+}
+
+.question-id-box .unfaithful-label {
+    color: var(--accent-cued);
+}
+
+/* Question ID line above receiver heads */
+.question-id-line {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-xs);
+}
+
+/* Highlight colors for question ID and category */
+.faithful-color {
+    color: var(--accent-gt);
+}
+
+.unfaithful-color {
+    color: var(--accent-cued);
+}
+
+/* Smaller receiver heads title */
+.receiver-heads-title {
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* Category badge (faithful/unfaithful indicator) */
+.category-badge {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+}
+
 
 /* ==============================================
    Try It Out Section

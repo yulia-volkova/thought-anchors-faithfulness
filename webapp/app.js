@@ -237,20 +237,16 @@ function getProblem(pi) {
 
 function updateCategoryBadges(category) {
     const badges = [
-        document.getElementById('pi-category-badge'),
-        document.getElementById('heads-category-badge'),
-        document.getElementById('attention-category-badge')
+        document.getElementById('pi-category-badge')
     ];
-    
+
     badges.forEach(badge => {
         if (!badge) return;
         badge.className = 'category-badge';
         if (category === 'faithful') {
-            badge.textContent = 'Faithful';
-            badge.classList.add('faithful');
+            badge.textContent = 'consistently faithful';
         } else if (category === 'unfaithful') {
-            badge.textContent = 'Unfaithful';
-            badge.classList.add('unfaithful');
+            badge.textContent = 'consistently unfaithful';
         } else {
             badge.textContent = '';
         }
@@ -274,11 +270,65 @@ function updateQuestionInfo() {
         document.getElementById('no-reasoning-acc').textContent = '—';
         document.getElementById('faithfulness-pct').textContent = '—';
         updateCategoryBadges(null);
+        // Reset question ID and category labels
+        const elementsToReset = [
+            'selected-question-id', 'fvu-question-id', 'question-details-id',
+            'selected-category-label', 'fvu-category-label'
+        ];
+        elementsToReset.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = '—';
+                if (id.includes('category')) el.className = '';
+            }
+        });
         return;
     }
     
     // Update category badges
     updateCategoryBadges(problem.category);
+
+    // Update question ID and category labels
+    const selectedQuestionId = document.getElementById('selected-question-id');
+    const selectedCategoryLabel = document.getElementById('selected-category-label');
+    const fvuQuestionId = document.getElementById('fvu-question-id');
+    const fvuCategoryLabel = document.getElementById('fvu-category-label');
+
+    if (selectedQuestionId) selectedQuestionId.textContent = problem.pi;
+    if (fvuQuestionId) fvuQuestionId.textContent = problem.pi;
+    const questionDetailsId = document.getElementById('question-details-id');
+    if (questionDetailsId) questionDetailsId.textContent = problem.pi;
+
+    // Update category labels and colors
+    const selectedQuestionIdEl = document.getElementById('selected-question-id');
+    const fvuQuestionIdEl = document.getElementById('fvu-question-id');
+    const categoryLabels = [selectedCategoryLabel, fvuCategoryLabel];
+
+    // Set color class on question IDs
+    [selectedQuestionIdEl, fvuQuestionIdEl].forEach(el => {
+        if (!el) return;
+        el.classList.remove('faithful-color', 'unfaithful-color');
+        if (problem.category === 'faithful') {
+            el.classList.add('faithful-color');
+        } else if (problem.category === 'unfaithful') {
+            el.classList.add('unfaithful-color');
+        }
+    });
+
+    // Update category labels with color
+    [selectedCategoryLabel, fvuCategoryLabel].forEach(label => {
+        if (!label) return;
+        label.classList.remove('faithful-color', 'unfaithful-color');
+        if (problem.category === 'faithful') {
+            label.textContent = 'consistently faithful';
+            label.classList.add('faithful-color');
+        } else if (problem.category === 'unfaithful') {
+            label.textContent = 'consistently unfaithful';
+            label.classList.add('unfaithful-color');
+        } else {
+            label.textContent = '—';
+        }
+    });
 
     // Update question text (full text, scrollable)
     let questionText = problem.question_cued || problem.question;

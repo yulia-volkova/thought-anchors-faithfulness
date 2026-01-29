@@ -32,7 +32,17 @@
         <!-- Header -->
         <header class="header">
             <h1>Do Faithful &amp; Unfaithful CoT Differ in How They Pay Attention?</h1>
-            <p class="subtitle">Interactive visualization of attention patterns in chain-of-thought reasoning</p>
+            <p class="author-line">
+                <span>By Yulia Volkova | MATS 9.0</span>
+                <span class="author-links">
+                    <a href="https://www.linkedin.com/in/yuulia-volkova/" target="_blank" title="LinkedIn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                    </a>
+                    <a href="https://yulia-volkova.github.io/" target="_blank" title="Website">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </a>
+                </span>
+            </p>
         </header>
 
         <!-- TL;DR Section -->
@@ -41,12 +51,8 @@
             <p class="tldr-intro">
                 I analyze consistently faithful &amp; unfaithful rollouts for MMLU &amp; GPQA-diamond datasets using the
                 <a href="https://arxiv.org/abs/2506.19143" target="_blank">Thought Anchors</a> framework.
+                I find that unfaithful CoT shows higher cue-following rate, and receiver heads almost do not overlap between faithful &amp; unfaithful CoT when looking at reasoning-only attention.
             </p>
-            <ul class="tldr-list">
-                <li>Unfaithful CoT shows <strong>higher cue-following rate</strong> than faithful CoT, when we control for sufficient cue influence.</li>
-                <li>Receiver heads <strong>almost do not overlap</strong> between faithful &amp; unfaithful CoT, when we look at attention distribution across reasoning sentences only.</li>
-                <li>There exist <strong>"universal attention heads"</strong> that consistently appear as receiver heads for both MMLU &amp; GPQA, in both faithful &amp; unfaithful rollouts.</li>
-            </ul>
             <p class="tldr-link">
                 <a href="#key-findings">View detailed findings below ↓</a>
             </p>
@@ -114,13 +120,97 @@
                     I compare which source sentences receive the most attention in cued vs. uncued rollouts.
                 </p>
 
+                <h3>Key Findings from Data Analysis</h3>
+                <p class="findings-note" style="font-size: 0.9rem; color: #666; margin-bottom: 1rem; font-style: italic;">
+                    <strong>Note:</strong> "r" represents the Pearson correlation coefficient, measuring the linear relationship between two variables.
+                    Values range from -1 (perfect negative correlation) to +1 (perfect positive correlation), with 0 indicating no linear relationship.
+                    "Gap" refers to the mean cue response gap — the average increase in cue-following behavior when a misleading cue is present.
+                </p>
+
+                <!-- MMLU Findings -->
+                <h4 style="margin-top: 1rem; color: #666;">MMLU</h4>
+                <div class="findings-grid">
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(accuracy, cue following) = -0.459</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Lower base accuracy correlates with <strong>more cue following</strong> — the model is more susceptible to misleading cues on harder problems.</p>
+                        <p class="finding-caveat">Cue following behaviour is likely confounded by problem difficulty. On harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('mmlu-acc-cue-follow')">Show graph ▼</button>
+                        <div id="mmlu-acc-cue-follow" class="correlation-graph hidden">
+                            <img src="images/accuracy_vs_cue_following.png" alt="Accuracy vs Cue Following correlation" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">Gap = 0.289</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Mean cue response gap of 0.289 — <strong>79.7%</strong> of problems show increased cue following when cued.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('mmlu-gap-dist')">Show distribution ▼</button>
+                        <div id="mmlu-gap-dist" class="correlation-graph hidden">
+                            <img src="images/mmlu_gap_distribution.png" alt="Cue Response Gap Distribution (MMLU)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(accuracy, gap) = 0.008</span>
+                            <span class="finding-pval">p = 0.92</span>
+                        </div>
+                        <p>No significant correlation between base accuracy and cue response gap — the <em>change</em> in behavior is consistent across difficulty levels.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('mmlu-acc-gap')">Show graph ▼</button>
+                        <div id="mmlu-acc-gap" class="correlation-graph hidden">
+                            <img src="images/mmlu_accuracy_vs_gap.png" alt="Accuracy vs Cue Response Gap correlation" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GPQA Findings -->
+                <h4 style="margin-top: 1.5rem; color: #666;">GPQA-Diamond</h4>
+                <div class="findings-grid">
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(accuracy, cue following) = -0.522</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Lower base accuracy correlates with <strong>more cue following</strong> — effect is even stronger than MMLU.</p>
+                        <p class="finding-caveat">Cue following behaviour is likely confounded by problem difficulty. On harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('gpqa-acc-cue-follow')">Show graph ▼</button>
+                        <div id="gpqa-acc-cue-follow" class="correlation-graph hidden">
+                            <img src="images/gpqa_accuracy_vs_cue_following.png" alt="Accuracy vs Cue Following correlation (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">Gap = 0.183</span>
+                            <span class="finding-pval">p &lt; 0.0001</span>
+                        </div>
+                        <p>Mean cue response gap of 0.183 — <strong>67.2%</strong> of problems show increased cue following when cued.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('gpqa-gap-dist')">Show distribution ▼</button>
+                        <div id="gpqa-gap-dist" class="correlation-graph hidden">
+                            <img src="images/gpqa_gap_distribution.png" alt="Cue Response Gap Distribution (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
+                    </div>
+                    <div class="finding-card">
+                        <div class="finding-header">
+                            <span class="finding-metric">r(faithfulness, accuracy drop) = -0.273</span>
+                            <span class="finding-pval">p = 0.0002</span>
+                        </div>
+                        <p>Higher faithfulness (explicit cue mentions) → <strong>larger accuracy drops</strong>. Verbalizing the cue is associated with being more misled.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('gpqa-faith-acc-drop')">Show graph ▼</button>
+                        <div id="gpqa-faith-acc-drop" class="correlation-graph hidden">
+                            <img src="images/gpqa_faithfulness_vs_accuracy_drop.png" alt="Faithfulness vs Accuracy Drop correlation (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
+                    </div>
+                </div>
+
             </div> <!-- methodology-content -->
         </section>
 
         <!-- Try It Out Section -->
         <section class="try-it-out-section">
             <h2>Try It Out!</h2>
-            <p class="section-intro">Explore attention patterns across different problems and datasets.</p>
         </section>
 
         <!-- Dataset Selection -->
@@ -148,7 +238,7 @@
             </div>
 
             <div class="control-group">
-                <label for="pi-select">Problem ID (PI)</label>
+                <label for="pi-select">Question ID</label>
                 <select id="pi-select">
                     <!-- Populated dynamically -->
                 </select>
@@ -161,12 +251,12 @@
                 </label>
                 <select id="heads-source">
                     <option value="aggregate">All in Category</option>
-                    <option value="single">This PI Only</option>
+                    <option value="single">This Question Only</option>
                 </select>
                 <div id="heads-source-tooltip" class="control-tooltip hidden">
-                    <p><strong>All in Category:</strong> Receiver heads are calculated using kurtosis measure calculated across all rollouts from all problem IDs (PIs) in the selected category. If only one category (faithful or unfaithful) is selected, kurtosis is computed across all rollouts from that category.</p>
-                    <p style="margin-top: 0.5rem;"><strong>Note on combining categories:</strong> If both faithful and unfaithful categories are selected, kurtosis would be computed across all rollouts from both categories combined. However, this may not be statistically appropriate since faithful and unfaithful problems may exhibit systematically different attention patterns. The original analysis keeps them separate for comparison.</p>
-                    <p style="margin-top: 0.5rem;"><strong>This PI Only:</strong> Receiver heads are calculated only across rollouts of this specific problem ID (PI).</p>
+                    <p><strong>All in Category:</strong> Receiver heads are calculated using kurtosis measure calculated across all rollouts from all question IDs in the selected category. If only one category (faithful or unfaithful) is selected, kurtosis is computed across all rollouts from that category.</p>
+                    <p style="margin-top: 0.5rem;"><strong>This Question Only:</strong> Receiver heads are calculated only across rollouts of this specific question ID.</p>
+                    <p style="margin-top: 0.5rem;"><strong>Note on combining categories:</strong> If both faithful and unfaithful categories are selected, kurtosis would be computed across all rollouts from both categories combined. However, this may not be statistically appropriate since faithful and unfaithful problems may exhibit systematically different attention patterns.</p>
                     <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Note: Bogdan et al. calculate receiver heads across the whole dataset of math rollouts (<a href="https://huggingface.co/datasets/uzaymacar/math-rollouts" target="_blank">link</a>).</p>
                 </div>
             </div>
@@ -190,7 +280,7 @@
         <main id="main-content">
             <!-- Question Info -->
             <section class="question-info">
-                <h2>Question Details <span id="pi-category-badge" class="category-badge"></span></h2>
+                <h2>Question ID <span id="question-details-id">—</span> <span id="pi-category-badge" class="category-badge"></span></h2>
                 <div class="info-grid">
                     <div class="info-card">
                         <span class="info-label">Question Text</span>
@@ -231,18 +321,27 @@
                 </div>
             </section>
 
+            <p class="viz-intro">Below I look at the cued versus uncued versions of the rollout for question ID <span id="selected-question-id" class="highlight-id">—</span>, <span id="selected-category-label" class="highlight-category">—</span></p>
+
+            <!-- Left doodle (positioned behind the box) -->
+            <div class="doodle-wrapper">
+                <img src="images/receiver_head_left.png" alt="" class="receiver-doodle-left">
+            </div>
+
+            <!-- Receiver Heads + Attention unified container -->
+            <div class="unified-attention-container">
             <!-- Receiver Heads -->
             <section class="receiver-heads-section">
-                <img src="images/receiver_head_left.png" alt="" class="receiver-doodle-left">
                 <img src="images/receiver_heads_doodle_right.png" alt="" class="receiver-doodle-right">
-                <h2>Top Receiver Heads <span id="heads-category-badge" class="category-badge"></span></h2>
-                <p class="section-desc">Heads with highest kurtosis in attention distribution (indicating focused attention patterns)</p>
+                <h3 class="receiver-heads-title">Top Receiver Heads <span class="info-icon" id="receiver-heads-info" data-tooltip="receiver-heads-tooltip">ℹ️</span></h3>
+                <div id="receiver-heads-tooltip" class="control-tooltip hidden">
+                    <p>Heads with highest kurtosis in attention distribution</p>
+                </div>
                 <p id="heads-fallback-note" class="fallback-note hidden"></p>
 
                 <div class="heads-comparison">
                     <div class="heads-column">
                         <h3>Cued Rollout</h3>
-                        <p class="column-note">• Dot indicates cue mention among the top source sentences for the selected layer-head pair</p>
                         <div id="cued-heads" class="heads-list">
                             <!-- Populated dynamically -->
                         </div>
@@ -254,16 +353,16 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="shared-heads">
-                    <span class="shared-label">Shared Heads:</span>
+                    <span class="shared-label">Shared Heads for cued & uncued:</span>
                     <span id="shared-heads-list">—</span>
                 </div>
             </section>
 
             <!-- Attention Matrices Side by Side -->
             <section class="attention-section">
-                <h2>Attention Patterns <span id="attention-category-badge" class="category-badge"></span></h2>
+                <h2>Attention Patterns</h2>
                 <p class="section-desc">Click on a head above to view its attention matrix. Hover for values.</p>
                 
                 <div class="attention-comparison">
@@ -308,13 +407,32 @@
                 </div>
             </section>
 
+            <!-- Summary for cued vs uncued -->
+            <section class="conclusion-section">
+                <h2>Summary</h2>
+                <div class="summary-stats">
+                    <div class="summary-card">
+                        <span class="summary-value" id="shared-heads-count">0</span>
+                        <span class="summary-label">Shared Heads among cued and uncued versions</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-value" id="shared-sources-count">0</span>
+                        <span class="summary-label">Shared Source Sentences</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-value" id="cue-in-stripes">—</span>
+                        <span class="summary-label">Cue in Top Sources (Cued)</span>
+                    </div>
+                </div>
+            </section>
+            </div> <!-- unified-attention-container -->
+
+            <p class="viz-intro">Now I look at the faithful and unfaithful rollout examples for the cued only version of question ID <span id="fvu-question-id" class="highlight-id">—</span>, <span id="fvu-category-label" class="highlight-category">—</span></p>
+
             <!-- Faithful vs Unfaithful Comparison (NEW) -->
             <section id="fvu-section" class="attention-section fvu-section hidden">
                 <h2>Faithful vs Unfaithful Comparison</h2>
-                <p class="section-desc">
-                    Comparing two <strong>cued</strong> rollouts: one that <em>mentions</em> the cue (faithful) vs one that <em>follows</em> the cue without mentioning it (unfaithful).
-                </p>
-                
+
                 <div id="fvu-not-available" class="fvu-not-available hidden">
                     <p>Faithful vs Unfaithful comparison not available for this problem. 
                     This requires both a cued rollout that mentions the professor AND one that doesn't.</p>
@@ -360,25 +478,6 @@
                     </div>
                 </div>
             </section>
-
-            <!-- Conclusion -->
-            <section class="conclusion-section">
-                <h2>Summary</h2>
-                <div class="summary-stats">
-                    <div class="summary-card">
-                        <span class="summary-value" id="shared-heads-count">0</span>
-                        <span class="summary-label">Shared Heads</span>
-                    </div>
-                    <div class="summary-card">
-                        <span class="summary-value" id="shared-sources-count">0</span>
-                        <span class="summary-label">Shared Source Sentences</span>
-                    </div>
-                    <div class="summary-card">
-                        <span class="summary-value" id="cue-in-stripes">—</span>
-                        <span class="summary-label">Cue in Top Sources (Cued)</span>
-                    </div>
-                </div>
-            </section>
         </main>
 
         <!-- Key Findings Section (Collapsible) -->
@@ -392,10 +491,13 @@
                 <!-- Finding 1: Hidden Influence -->
                 <div class="finding-card">
                     <div class="finding-header">
-                        <span class="finding-metric">Unfaithful CoT (silent cue following) shows higher cue-following rate (91%) than faithful CoT (66%) in selected PIs.</span>
+                        <span class="finding-metric">Unfaithful CoT shows higher cue-following rate</span>
                     </div>
-                    <p style="margin-top: 0.5rem;">Without selection, the pattern reverses: unfaithful 34% vs faithful 42%. However, controlling for cue response gap ≥ 0.5, the pattern holds: <strong>unfaithful 80% vs faithful 71%</strong> (+9pp).</p>
-                    <p><a href="#selection-criteria" onclick="document.getElementById('methodology-content').classList.remove('collapsed'); document.getElementById('methodology-toggle').classList.add('expanded');">Problem Selection Criteria</a></p>
+                    <ul class="finding-list">
+                        <li>Unfaithful CoT show higher cue-following rate (80%) than faithful CoT (71%) when we control for cue response gap ≥ 0.5.</li>
+                        <li>Without controlling for high cue influence, the pattern reverses: unfaithful 34% vs faithful 42%.</li>
+                        <li>In <a href="#selection-criteria" onclick="document.getElementById('methodology-content').classList.remove('collapsed'); document.getElementById('methodology-toggle').classList.add('expanded');">selected</a> subset of questions, where we control both for cue response gap and low no reasoning accuracy, the pattern strengthens: unfaithful CoT show higher cue-following rate (91%) than faithful CoT (66%).</li>
+                    </ul>
                     <button class="expand-graph-btn" onclick="toggleGraph('hidden-influence')">Show graph ▼</button>
                     <div id="hidden-influence" class="correlation-graph hidden">
                         <img src="images/conclusion_hidden_influence_web.png" alt="Hidden Influence Comparison">
@@ -407,8 +509,8 @@
                     <div class="finding-header">
                         <span class="finding-metric">Divergent Attention Circuits</span>
                     </div>
-                    <p>Faithful and unfaithful CoT share 62-83% of top receiver heads when <strong>prompt is included into calculation of receiver heads</strong> and attention to sentences within prompt is also accounted for.</p>
-                    <p>Near-zero overlap (0-11%) when we consider <strong>reasoning only attention</strong>: faithful and unfaithful PIs use completely different heads.</p>
+                    <p>When we look at <strong>reasoning only</strong> attention, faithful and unfaithful questions use completely different (only 0-11% overlap) heads to focus on the most important sentences.</p>
+                    <p>However, when <strong>prompt is included</strong> into the calculation of receiver heads and attention to sentences within prompt is also accounted for, faithful and unfaithful CoT <strong>share 62-83%</strong> of top receiver heads.</p>
                     <button class="expand-graph-btn" onclick="toggleGraph('divergent-circuits')">Show graph ▼</button>
                     <div id="divergent-circuits" class="correlation-graph hidden">
                         <img src="images/conclusion_divergent_circuits_web.png" alt="Divergent Circuits Comparison">
