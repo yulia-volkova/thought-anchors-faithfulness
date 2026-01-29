@@ -31,7 +31,6 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <img src="images/attention_heads_doodle.png" alt="" class="header-doodle-bg">
             <h1>Do Faithful &amp; Unfaithful CoT Differ in How They Pay Attention?</h1>
             <p class="subtitle">Interactive visualization of attention patterns in chain-of-thought reasoning</p>
         </header>
@@ -75,15 +74,7 @@
                     white-box monitoring of reasoning quality in deployed models.
                 </p>
 
-                <h3 id="selection-criteria">Research Question</h3>
-                <p>
-                    We investigate whether <strong>faithful</strong> and <strong>unfaithful</strong> Chain-of-Thought (CoT)
-                    reasoning exhibit different attention patterns. Specifically, we analyze attention heads that act as
-                    "receivers" — heads with focused attention distributions (high kurtosis) that attend heavily to
-                    specific source sentences.
-                </p>
-
-                <h3>Problem Selection Criteria</h3>
+                <h3 id="selection-criteria">Problem Selection Criteria</h3>
                 <p>Problems were selected from MMLU and GPQA using the following criteria:</p>
                 <ul class="clean-list">
                     <li><strong>Low no-reasoning accuracy (&lt;50%)</strong> — Problems where the model struggles without CoT</li>
@@ -120,7 +111,7 @@
                     For each problem, we identify <strong>receiver heads</strong> — attention heads with high kurtosis
                     in their attention distribution. High kurtosis indicates the head consistently
                     attends to specific source sentences (creating "vertical stripes" in the attention matrix).
-                    We compare which source sentences receive the most attention in cued vs. uncued rollouts.
+                    I compare which source sentences receive the most attention in cued vs. uncued rollouts.
                 </p>
 
             </div> <!-- methodology-content -->
@@ -404,7 +395,7 @@
                         <span class="finding-metric">Unfaithful CoT (silent cue following) shows higher cue-following rate (91%) than faithful CoT (66%) in selected PIs.</span>
                     </div>
                     <p style="margin-top: 0.5rem;">Without selection, the pattern reverses: unfaithful 34% vs faithful 42%. However, controlling for cue response gap ≥ 0.5, the pattern holds: <strong>unfaithful 80% vs faithful 71%</strong> (+9pp).</p>
-                    <p><a href="#selection-criteria">Problem Selection Criteria</a></p>
+                    <p><a href="#selection-criteria" onclick="document.getElementById('methodology-content').classList.remove('collapsed'); document.getElementById('methodology-toggle').classList.add('expanded');">Problem Selection Criteria</a></p>
                     <button class="expand-graph-btn" onclick="toggleGraph('hidden-influence')">Show graph ▼</button>
                     <div id="hidden-influence" class="correlation-graph hidden">
                         <img src="images/conclusion_hidden_influence_web.png" alt="Hidden Influence Comparison">
