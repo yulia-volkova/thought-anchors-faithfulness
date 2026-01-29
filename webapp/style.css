@@ -1835,6 +1835,36 @@ section h2 {
 }
 
 /* ==============================================
+   Future Directions Section (simple, no box)
+   ============================================== */
+.future-directions-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.future-directions-section h2 {
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.future-directions-section p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.future-directions-section a {
+    color: var(--accent-cued);
+    text-decoration: none;
+}
+
+.future-directions-section a:hover {
+    text-decoration: underline;
+}
+
+/* ==============================================
    Acknowledgements Section (simple)
    ============================================== */
 .acknowledgements-section {
