@@ -1192,13 +1192,22 @@ function updateSummary() {
     document.getElementById('shared-sources-count').textContent = '—';
 }
 
-// Toggle appendix visibility
-function toggleAppendix() {
-    const content = document.getElementById('appendix-content');
-    const toggle = document.getElementById('appendix-toggle');
-    
+// Toggle methodology visibility
+function toggleMethodology() {
+    const content = document.getElementById('methodology-content');
+    const toggle = document.getElementById('methodology-toggle');
+
     content.classList.toggle('collapsed');
-    toggle.classList.toggle('collapsed');
+    toggle.classList.toggle('expanded');
+}
+
+// Toggle key findings visibility
+function toggleKeyFindings() {
+    const content = document.getElementById('key-findings-content');
+    const toggle = document.getElementById('key-findings-toggle');
+
+    content.classList.toggle('collapsed');
+    toggle.classList.toggle('expanded');
 }
 
 // Toggle question text expand/collapse
@@ -1246,7 +1255,8 @@ function toggleSidenote(id) {
 }
 
 // Make toggle functions available globally
-window.toggleAppendix = toggleAppendix;
+window.toggleMethodology = toggleMethodology;
+window.toggleKeyFindings = toggleKeyFindings;
 window.toggleQuestionExpand = toggleQuestionExpand;
 window.toggleSidenote = toggleSidenote;
 window.toggleGraph = toggleGraph;

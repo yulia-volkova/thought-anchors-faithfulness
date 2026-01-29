@@ -1599,3 +1599,266 @@ section h2 {
     background: var(--accent-shared-light);
 }
 
+
+/* ==============================================
+   TL;DR Section
+   ============================================== */
+.tldr-section {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tldr-section h2 {
+    font-family: var(--font-serif);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.tldr-intro {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-md);
+}
+
+.tldr-intro a {
+    color: var(--accent-cued);
+    text-decoration: none;
+}
+
+.tldr-intro a:hover {
+    text-decoration: underline;
+}
+
+.tldr-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.tldr-list li {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.tldr-list li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--accent-shared);
+    font-weight: 600;
+}
+
+.tldr-link {
+    margin-top: var(--spacing-md);
+}
+
+.tldr-link a {
+    color: var(--accent-shared);
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+.tldr-link a:hover {
+    text-decoration: underline;
+}
+
+/* ==============================================
+   Methodology Collapsible Section
+   ============================================== */
+.methodology-collapsible {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.methodology-header {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) 0;
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    user-select: none;
+    transition: color 0.2s ease;
+}
+
+.methodology-header:hover {
+    color: var(--accent-cued);
+}
+
+.methodology-header .toggle-icon {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.methodology-header .toggle-icon.expanded {
+    transform: rotate(90deg);
+}
+
+.methodology-body {
+    padding-top: var(--spacing-md);
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+    max-height: 8000px;
+    opacity: 1;
+}
+
+.methodology-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+}
+
+.methodology-body h3 {
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: var(--spacing-lg) 0 var(--spacing-sm) 0;
+}
+
+.methodology-body h3:first-child {
+    margin-top: 0;
+}
+
+.methodology-body p {
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: var(--spacing-sm);
+}
+
+.methodology-body code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-tertiary);
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+/* ==============================================
+   Try It Out Section
+   ============================================== */
+.try-it-out-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.try-it-out-section h2 {
+    font-family: var(--font-serif);
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.try-it-out-section .section-intro {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ==============================================
+   Key Findings Collapsible
+   ============================================== */
+.key-findings-header {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    transition: color 0.2s ease;
+}
+
+.key-findings-header:hover {
+    color: var(--accent-shared);
+}
+
+.key-findings-header .toggle-icon {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.key-findings-header .toggle-icon.expanded {
+    transform: rotate(90deg);
+}
+
+.key-findings-body {
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+    max-height: 5000px;
+    opacity: 1;
+}
+
+.key-findings-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* ==============================================
+   Clean List (minimal bullet points)
+   ============================================== */
+.clean-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-lg) 0;
+}
+
+.clean-list li {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.clean-list li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--text-muted);
+}
+
+/* ==============================================
+   Acknowledgements Section (simple)
+   ============================================== */
+.acknowledgements-section {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+.acknowledgements-section h2 {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.acknowledgements-section p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.acknowledgements-section a {
+    color: var(--accent-cued);
+    text-decoration: none;
+}
+
+.acknowledgements-section a:hover {
+    text-decoration: underline;
+}
