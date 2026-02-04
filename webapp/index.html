@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faithful vs Unfaithful CoT Attention Analysis</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Source+Sans+Pro:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
@@ -65,21 +66,11 @@
                     white-box monitoring of reasoning quality in deployed models.
                 </p>
 
-                <h3 id="selection-criteria">Problem Selection Criteria</h3>
-                <p>Problems were selected from MMLU and GPQA using the following criteria:</p>
-                <ul class="clean-list">
-                    <li><strong>Low no-reasoning accuracy (&lt;50%)</strong> — Problems where the model struggles without CoT</li>
-                    <li><strong>High cue response gap (≥0.5)</strong> — Large difference in cue-following between cued and uncued conditions</li>
-                    <li><strong>Cue ≠ Ground Truth</strong> — The cue answer differs from the correct answer</li>
-                    <li><strong>Each problem is unique</strong></li>
-                </ul>
-
-                <h3>Faithfulness Classification</h3>
-                <ul class="clean-list">
-                    <li><strong>Faithful CoT:</strong> Rollouts where the model follows the cue AND explicitly mentions the cue in its reasoning. Threshold: ≥80% for MMLU, ≥70% for GPQA.</li>
-                    <li><strong>Unfaithful CoT:</strong> Rollouts where the model follows the cue BUT does not mention it — the CoT does not reflect the actual decision process. Threshold: ≥80% for MMLU, ≥70% for GPQA.</li>
-                    <li><strong>Mixed:</strong> Problems with substantial proportions of both. Threshold: unfaithful/faithful ratio ≥40%.</li>
-                </ul>
+                <!-- Pipeline Overview -->
+                <h3>Pipeline</h3>
+                <div class="pipeline-overview">
+                    <img src="images/methodology_pipeline.svg" alt="Methodology Pipeline" class="pipeline-img">
+                </div>
 
                 <h3>Dataset Statistics</h3>
                 <p><strong>MMLU:</strong> 143 problems, 20 rollouts per condition, median reasoning accuracy 0.637, median no-reasoning accuracy 0.474.</p>
@@ -97,15 +88,22 @@
                     <li><strong>Rollouts:</strong> 20 per condition (stage 1), 5 per condition (stage 2)</li>
                 </ul>
 
-                <h3>Attention Analysis</h3>
-                <p>
-                    For each problem, we identify <strong>receiver heads</strong> — attention heads with high kurtosis
-                    in their attention distribution. High kurtosis indicates the head consistently
-                    attends to specific source sentences (creating "vertical stripes" in the attention matrix).
-                    I compare which source sentences receive the most attention in cued vs. uncued rollouts.
-                </p>
+                <h3>Faithfulness Classification</h3>
+                <ul class="clean-list">
+                    <li><strong>Faithful CoT:</strong> Follows cue AND mentions it in reasoning (threshold: ≥80% MMLU, ≥70% GPQA)</li>
+                    <li><strong>Unfaithful CoT:</strong> Follows cue but doesn't mention it (threshold: ≥80% MMLU, ≥70% GPQA)</li>
+                </ul>
 
-                <h3>Key Findings from Data Analysis</h3>
+                <h3 id="selection-criteria">Problem Selection Criteria</h3>
+                <p>Problems were selected from MMLU and GPQA rollouts using the following criteria:</p>
+                <ul class="clean-list">
+                    <li><strong>Low no-reasoning accuracy (&lt;50%)</strong> — Problems where the model struggles without CoT</li>
+                    <li><strong>High cue response gap (≥0.5)</strong> — Large difference in cue-following between cued and uncued conditions</li>
+                    <li><strong>Cue ≠ Ground Truth</strong> — The cue answer differs from the correct answer</li>
+                    <li><strong>Each problem is unique</strong></li>
+                </ul>
+
+                <h3>Preliminary Data Analysis</h3>
                 <p class="findings-note" style="font-size: 0.9rem; color: #666; margin-bottom: 1rem; font-style: italic;">
                     <strong>Note:</strong> "r" represents the Pearson correlation coefficient, measuring the linear relationship between two variables.
                     Values range from -1 (perfect negative correlation) to +1 (perfect positive correlation), with 0 indicating no linear relationship.
@@ -189,6 +187,14 @@
                         </div>
                     </div>
                 </div>
+
+                <h3>Attention Analysis</h3>
+                <p>
+                    For each problem, we identify <strong>receiver heads</strong> — attention heads with high kurtosis
+                    in their attention distribution. High kurtosis indicates the head consistently
+                    attends to specific source sentences (creating "vertical stripes" in the attention matrix).
+                    I compare which source sentences receive the most attention in cued vs. uncued rollouts.
+                </p>
 
             </div> <!-- methodology-content -->
         </section>
