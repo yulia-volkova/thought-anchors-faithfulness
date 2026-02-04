@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 165" font-family="'Source Sans Pro', -apple-system, sans-serif">
+  <!-- Stage 1: Data -->
+  <g transform="translate(0, 30)">
+    <rect x="0" y="0" width="150" height="120" rx="12" fill="#fff" stroke="#d0ccc5" stroke-width="2"/>
+    <text x="75" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#2c2c2c">Data Sources</text>
+    <line x1="15" y1="42" x2="135" y2="42" stroke="#e5e2dd" stroke-width="1"/>
+    <text x="75" y="64" text-anchor="middle" font-size="12" fill="#5a5a5a">MMLU</text>
+    <text x="75" y="82" text-anchor="middle" font-size="12" fill="#5a5a5a">GPQA-Diamond</text>
+    <text x="75" y="106" text-anchor="middle" font-size="11" fill="#8a8a8a">329 problems</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <g transform="translate(158, 85)">
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#d0ccc5" stroke-width="2"/>
+    <polygon points="24,-5 34,0 24,5" fill="#d0ccc5"/>
+  </g>
+
+  <!-- Stage 2: Cue Injection -->
+  <g transform="translate(200, 30)">
+    <rect x="0" y="0" width="150" height="120" rx="12" fill="#fff" stroke="#d0ccc5" stroke-width="2"/>
+    <text x="75" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#2c2c2c">Add Misleading Cue</text>
+    <line x1="15" y1="42" x2="135" y2="42" stroke="#e5e2dd" stroke-width="1"/>
+    <text x="75" y="62" text-anchor="middle" font-size="11" fill="#5a5a5a">"A Stanford professor</text>
+    <text x="75" y="76" text-anchor="middle" font-size="11" fill="#5a5a5a">thinks the answer is</text>
+    <text x="75" y="92" text-anchor="middle" font-size="12" font-weight="600" fill="#5a5a5a">[wrong answer]"</text>
+    <text x="75" y="108" text-anchor="middle" font-size="10" fill="#8a8a8a">cue != ground truth</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <g transform="translate(358, 85)">
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#d0ccc5" stroke-width="2"/>
+    <polygon points="24,-5 34,0 24,5" fill="#d0ccc5"/>
+  </g>
+
+  <!-- Stage 3: Generate Rollouts -->
+  <g transform="translate(400, 30)">
+    <rect x="0" y="0" width="150" height="120" rx="12" fill="#fff" stroke="#d0ccc5" stroke-width="2"/>
+    <text x="75" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#2c2c2c">Generate Rollouts</text>
+    <line x1="15" y1="42" x2="135" y2="42" stroke="#e5e2dd" stroke-width="1"/>
+    <text x="75" y="62" text-anchor="middle" font-size="11" fill="#5a5a5a">DeepSeek-R1-14B</text>
+    <text x="75" y="78" text-anchor="middle" font-size="11" fill="#5a5a5a">20 rollouts each:</text>
+    <text x="75" y="94" text-anchor="middle" font-size="11" fill="#5a5a5a">Cued | Uncued | No-CoT</text>
+    <text x="75" y="110" text-anchor="middle" font-size="10" fill="#8a8a8a">temp=0.7</text>
+  </g>
+
+  <!-- Arrow 3 -->
+  <g transform="translate(558, 85)">
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#d0ccc5" stroke-width="2"/>
+    <polygon points="24,-5 34,0 24,5" fill="#d0ccc5"/>
+  </g>
+
+  <!-- Stage 4: Selection Criteria -->
+  <g transform="translate(600, 30)">
+    <rect x="0" y="0" width="170" height="120" rx="12" fill="#fff" stroke="#d0ccc5" stroke-width="2"/>
+    <text x="85" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#2c2c2c">Select Problems</text>
+    <line x1="15" y1="42" x2="155" y2="42" stroke="#e5e2dd" stroke-width="1"/>
+    <text x="85" y="64" text-anchor="middle" font-size="11" fill="#5a5a5a">Cue response gap ≥ 0.5</text>
+    <text x="85" y="82" text-anchor="middle" font-size="11" fill="#5a5a5a">No-reasoning acc &lt; 50%</text>
+    <text x="85" y="106" text-anchor="middle" font-size="11" fill="#8a8a8a">Strong cue influence</text>
+  </g>
+
+  <!-- Arrow 4 -->
+  <g transform="translate(778, 85)">
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#d0ccc5" stroke-width="2"/>
+    <polygon points="24,-5 34,0 24,5" fill="#d0ccc5"/>
+  </g>
+
+  <!-- Stage 5: Classify -->
+  <g transform="translate(820, 30)">
+    <rect x="0" y="0" width="150" height="120" rx="12" fill="#fff" stroke="#d0ccc5" stroke-width="2"/>
+    <text x="75" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#2c2c2c">Classify Faithfulness</text>
+    <line x1="15" y1="42" x2="135" y2="42" stroke="#e5e2dd" stroke-width="1"/>
+    <text x="75" y="62" text-anchor="middle" font-size="11" fill="#5a5a5a">Does CoT mention cue?</text>
+    <g transform="translate(18, 70)">
+      <rect x="0" y="0" width="52" height="20" rx="4" fill="#e8e8e8"/>
+      <text x="26" y="14" text-anchor="middle" font-size="10" fill="#5a5a5a">Faithful</text>
+    </g>
+    <g transform="translate(80, 70)">
+      <rect x="0" y="0" width="56" height="20" rx="4" fill="#e8e8e8"/>
+      <text x="28" y="14" text-anchor="middle" font-size="10" fill="#5a5a5a">Unfaithful</text>
+    </g>
+    <text x="75" y="108" text-anchor="middle" font-size="10" fill="#8a8a8a">threshold: 70-80%</text>
+  </g>
+
+  <!-- Arrow 5 -->
+  <g transform="translate(978, 85)">
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#d0ccc5" stroke-width="2"/>
+    <polygon points="24,-5 34,0 24,5" fill="#d0ccc5"/>
+  </g>
+
+  <!-- Stage 6: Attention Analysis -->
+  <g transform="translate(1020, 30)">
+    <rect x="0" y="0" width="130" height="120" rx="12" fill="#fff" stroke="#d0ccc5" stroke-width="2"/>
+    <text x="65" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#2c2c2c">Attention</text>
+    <text x="65" y="44" text-anchor="middle" font-size="14" font-weight="600" fill="#2c2c2c">Analysis</text>
+    <line x1="15" y1="54" x2="115" y2="54" stroke="#e5e2dd" stroke-width="1"/>
+    <text x="65" y="74" text-anchor="middle" font-size="11" fill="#5a5a5a">Find receiver</text>
+    <text x="65" y="90" text-anchor="middle" font-size="11" fill="#5a5a5a">heads (kurtosis)</text>
+    <text x="65" y="108" text-anchor="middle" font-size="11" fill="#8a8a8a">48L x 32H</text>
+  </g>
+
+</svg>
