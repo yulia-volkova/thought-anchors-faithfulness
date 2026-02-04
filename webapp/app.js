@@ -1278,7 +1278,7 @@ function toggleQuestionExpand() {
 function toggleGraph(graphId) {
     const graph = document.getElementById(graphId);
     const btn = graph.previousElementSibling;
-    
+
     if (graph.classList.contains('hidden')) {
         graph.classList.remove('hidden');
         btn.textContent = 'Hide graph ▲';
@@ -1286,6 +1286,11 @@ function toggleGraph(graphId) {
         graph.classList.add('hidden');
         btn.textContent = 'Show graph ▼';
     }
+}
+
+function toggleDefinition(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('hidden');
 }
 
 // Export for debugging

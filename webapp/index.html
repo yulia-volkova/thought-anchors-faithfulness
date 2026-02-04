@@ -104,11 +104,25 @@
                 </ul>
 
                 <h3>Preliminary Data Analysis</h3>
-                <p class="findings-note" style="font-size: 0.9rem; color: #666; margin-bottom: 1rem; font-style: italic;">
-                    <strong>Note:</strong> "r" represents the Pearson correlation coefficient, measuring the linear relationship between two variables.
-                    Values range from -1 (perfect negative correlation) to +1 (perfect positive correlation), with 0 indicating no linear relationship.
-                    "Gap" refers to the mean cue response gap — the average increase in cue-following behavior when a misleading cue is present.
-                </p>
+                <div class="definitions-section" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <button class="expand-graph-btn" onclick="toggleDefinition('what-is-r')">What is "r"?</button>
+                        <div id="what-is-r" class="correlation-graph hidden" style="margin-top: 0.5rem;">
+                            <p style="font-size: 0.9rem; color: #666; font-style: italic; margin: 0;">
+                                "r" represents the Pearson correlation coefficient, measuring the linear relationship between two variables.
+                                Values range from -1 (perfect negative correlation) to +1 (perfect positive correlation), with 0 indicating no linear relationship.
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="expand-graph-btn" onclick="toggleDefinition('what-is-gap')">What is "Gap"?</button>
+                        <div id="what-is-gap" class="correlation-graph hidden" style="margin-top: 0.5rem;">
+                            <p style="font-size: 0.9rem; color: #666; font-style: italic; margin: 0;">
+                                "Gap" refers to the mean cue response gap — the average increase in cue-following behavior when a misleading cue is present.
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- MMLU Findings -->
                 <h4 style="margin-top: 1rem; color: #666;">MMLU</h4>

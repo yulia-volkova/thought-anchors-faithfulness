@@ -1563,19 +1563,17 @@ section h2 {
    ============================================== */
 
 .key-findings-section {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
     margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .key-findings-section h2 {
     font-family: var(--font-serif);
-    font-size: 1.4rem;
-    font-weight: 600;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
     color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
 }
 
 .key-findings-section .section-desc {
@@ -1700,10 +1698,10 @@ section h2 {
 
 .tldr-section h2 {
     font-family: var(--font-serif);
-    font-size: 1.6rem;
-    font-weight: 700;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
     color: var(--text-primary);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
 }
 
 .tldr-intro {
@@ -1773,11 +1771,11 @@ section h2 {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
-    padding: var(--spacing-sm) 0;
-    margin: 0;
+    padding: 0;
+    margin: 0 0 var(--spacing-sm) 0;
     font-family: var(--font-serif);
-    font-size: 1.3rem;
-    font-weight: 600;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
     color: var(--text-primary);
     user-select: none;
     transition: color 0.2s ease;
@@ -1835,6 +1833,20 @@ section h2 {
     background: var(--bg-tertiary);
     padding: 2px 5px;
     border-radius: 3px;
+}
+
+/* Pipeline Overview */
+.pipeline-overview {
+    margin-bottom: var(--spacing-xl);
+    overflow-x: auto;
+}
+
+.pipeline-img {
+    width: 100%;
+    max-width: 1100px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
 }
 
 /* Visualization intro text */
@@ -1913,10 +1925,10 @@ section h2 {
 
 .try-it-out-section h2 {
     font-family: var(--font-serif);
-    font-size: 1.4rem;
-    font-weight: 600;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
     color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
 }
 
 .try-it-out-section .section-intro {
@@ -1932,7 +1944,9 @@ section h2 {
     cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: var(--spacing-sm);
+    padding: 0;
+    margin: 0 0 var(--spacing-sm) 0;
     user-select: none;
     transition: color 0.2s ease;
 }
@@ -1952,8 +1966,9 @@ section h2 {
 }
 
 .key-findings-body {
+    padding-top: var(--spacing-md);
     overflow: hidden;
-    transition: max-height 0.4s ease, opacity 0.3s ease;
+    transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
     max-height: 5000px;
     opacity: 1;
 }
@@ -1961,6 +1976,7 @@ section h2 {
 .key-findings-body.collapsed {
     max-height: 0;
     opacity: 0;
+    padding-top: 0;
 }
 
 /* ==============================================
@@ -1996,8 +2012,8 @@ section h2 {
 
 .future-directions-section h2 {
     font-family: var(--font-serif);
-    font-size: 1.3rem;
-    font-weight: 600;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
     color: var(--text-primary);
     margin-bottom: var(--spacing-sm);
 }
@@ -2028,8 +2044,8 @@ section h2 {
 
 .acknowledgements-section h2 {
     font-family: var(--font-serif);
-    font-size: 1.2rem;
-    font-weight: 600;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
     color: var(--text-primary);
     margin-bottom: var(--spacing-sm);
 }
