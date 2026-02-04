@@ -110,6 +110,13 @@ body {
     z-index: 1;
 }
 
+.header-emoji {
+    height: 1.2em;
+    width: auto;
+    vertical-align: middle;
+    margin-left: 0.2em;
+}
+
 /* Background doodle decorations */
 .bg-doodles {
     position: absolute;
@@ -125,12 +132,27 @@ body {
 .bg-doodle {
     position: absolute;
     pointer-events: none;
+    width: 120px;
+    opacity: 0.25;
 }
 
-/* Hide all bg-doodles - only keep the header-doodle-bg */
-.bg-doodle {
-    display: none;
-}
+/* Position doodles along left and right edges */
+.bg-doodle-1 { top: 50px; left: 10px; transform: rotate(-10deg); }
+.bg-doodle-2 { top: 50px; right: 10px; left: auto; transform: rotate(10deg) scaleX(-1); }
+.bg-doodle-3 { top: 400px; left: 15px; transform: rotate(5deg); }
+.bg-doodle-4 { top: 400px; right: 15px; left: auto; transform: rotate(-5deg) scaleX(-1); }
+.bg-doodle-5 { top: 750px; left: 10px; transform: rotate(-8deg); }
+.bg-doodle-6 { top: 750px; right: 10px; left: auto; transform: rotate(8deg) scaleX(-1); }
+.bg-doodle-7 { top: 1100px; left: 20px; transform: rotate(12deg); }
+.bg-doodle-8 { top: 1100px; right: 20px; left: auto; transform: rotate(-12deg) scaleX(-1); }
+.bg-doodle-9 { top: 1450px; left: 10px; transform: rotate(-6deg); }
+.bg-doodle-10 { top: 1450px; right: 10px; left: auto; transform: rotate(6deg) scaleX(-1); }
+.bg-doodle-11 { top: 1800px; left: 15px; transform: rotate(10deg); }
+.bg-doodle-12 { top: 1800px; right: 15px; left: auto; transform: rotate(-10deg) scaleX(-1); }
+.bg-doodle-13 { top: 2150px; left: 10px; transform: rotate(-4deg); }
+.bg-doodle-14 { top: 2150px; right: 10px; left: auto; transform: rotate(4deg) scaleX(-1); }
+.bg-doodle-15 { top: 2500px; left: 20px; transform: rotate(8deg); }
+.bg-doodle-16 { top: 2500px; right: 20px; left: auto; transform: rotate(-8deg) scaleX(-1); }
 
 /* Make sure content is above doodles */
 .container {
