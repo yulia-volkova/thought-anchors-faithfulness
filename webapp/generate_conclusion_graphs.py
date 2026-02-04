@@ -256,9 +256,11 @@ def create_divergent_circuits_graph():
     full_vals = [data[d]['full'] for d in data]
     reasoning_vals = [data[d]['reasoning'] for d in data]
 
-    bars1 = ax.bar(x - width/2, full_vals, width, label='Full (with prompt)',
-                   color=COLORS['orange'], edgecolor='white', linewidth=2)
-    bars2 = ax.bar(x + width/2, reasoning_vals, width, label='Reasoning only',
+    # Orange bars first (behind), low opacity
+    bars1 = ax.bar(x, full_vals, width, label='Full (with prompt)',
+                   color=COLORS['orange'], edgecolor='white', linewidth=2, alpha=0.2)
+    # Violet bars second (on top), full opacity
+    bars2 = ax.bar(x, reasoning_vals, width, label='Reasoning only',
                    color=COLORS['violet'], edgecolor='white', linewidth=2)
 
     # Add value labels
