@@ -122,6 +122,10 @@
                         </div>
                         <p>Lower base accuracy correlates with <strong>more cue following</strong> — the model is more susceptible to misleading cues on harder problems.</p>
                         <p class="finding-caveat">Cue following behaviour is likely confounded by problem difficulty. On harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('mmlu-acc-cue-follow')">Show graph ▼</button>
+                        <div id="mmlu-acc-cue-follow" class="correlation-graph hidden">
+                            <img src="images/accuracy_vs_cue_following.png" alt="Accuracy vs Cue Following correlation" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
                     </div>
                     <div class="finding-card">
                         <div class="finding-header">
@@ -129,6 +133,10 @@
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
                         <p>Mean cue response gap of 0.289 — <strong>79.7%</strong> of problems show increased cue following when cued.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('mmlu-gap-dist')">Show distribution ▼</button>
+                        <div id="mmlu-gap-dist" class="correlation-graph hidden">
+                            <img src="images/mmlu_gap_distribution.png" alt="Cue Response Gap Distribution (MMLU)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
                     </div>
                     <div class="finding-card">
                         <div class="finding-header">
@@ -136,6 +144,10 @@
                             <span class="finding-pval">p = 0.92</span>
                         </div>
                         <p>No significant correlation between base accuracy and cue response gap — the <em>change</em> in behavior is consistent across difficulty levels.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('mmlu-acc-gap')">Show graph ▼</button>
+                        <div id="mmlu-acc-gap" class="correlation-graph hidden">
+                            <img src="images/mmlu_accuracy_vs_gap.png" alt="Accuracy vs Cue Response Gap correlation" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
                     </div>
                 </div>
 
@@ -149,6 +161,10 @@
                         </div>
                         <p>Lower base accuracy correlates with <strong>more cue following</strong> — effect is even stronger than MMLU.</p>
                         <p class="finding-caveat">Cue following behaviour is likely confounded by problem difficulty. On harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('gpqa-acc-cue-follow')">Show graph ▼</button>
+                        <div id="gpqa-acc-cue-follow" class="correlation-graph hidden">
+                            <img src="images/gpqa_accuracy_vs_cue_following.png" alt="Accuracy vs Cue Following correlation (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
                     </div>
                     <div class="finding-card">
                         <div class="finding-header">
@@ -156,6 +172,10 @@
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
                         <p>Mean cue response gap of 0.183 — <strong>67.2%</strong> of problems show increased cue following when cued.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('gpqa-gap-dist')">Show distribution ▼</button>
+                        <div id="gpqa-gap-dist" class="correlation-graph hidden">
+                            <img src="images/gpqa_gap_distribution.png" alt="Cue Response Gap Distribution (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
                     </div>
                     <div class="finding-card">
                         <div class="finding-header">
@@ -163,6 +183,10 @@
                             <span class="finding-pval">p = 0.0002</span>
                         </div>
                         <p>Higher faithfulness (explicit cue mentions) → <strong>larger accuracy drops</strong>. Verbalizing the cue is associated with being more misled.</p>
+                        <button class="expand-graph-btn" onclick="toggleGraph('gpqa-faith-acc-drop')">Show graph ▼</button>
+                        <div id="gpqa-faith-acc-drop" class="correlation-graph hidden">
+                            <img src="images/gpqa_faithfulness_vs_accuracy_drop.png" alt="Faithfulness vs Accuracy Drop correlation (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
+                        </div>
                     </div>
                 </div>
 
@@ -453,6 +477,10 @@
                         <li>Without controlling for high cue influence, the pattern reverses: unfaithful 34% vs faithful 42%.</li>
                         <li>In <a href="#selection-criteria" onclick="document.getElementById('methodology-content').classList.remove('collapsed'); document.getElementById('methodology-toggle').classList.add('expanded');">selected</a> subset of questions, where we control both for cue response gap and low no reasoning accuracy, the pattern strengthens: unfaithful CoT show higher cue-following rate (91%) than faithful CoT (66%).</li>
                     </ul>
+                    <button class="expand-graph-btn" onclick="toggleGraph('hidden-influence')">Show graph ▼</button>
+                    <div id="hidden-influence" class="correlation-graph hidden">
+                        <img src="images/conclusion_hidden_influence_web.png" alt="Hidden Influence Comparison">
+                    </div>
                 </div>
 
                 <!-- Finding 2: Divergent Circuits -->
@@ -462,6 +490,10 @@
                     </div>
                     <p>When we look at <strong>reasoning only</strong> attention, faithful and unfaithful questions use completely different (only 0-11% overlap) heads to focus on the most important sentences.</p>
                     <p>However, when <strong>prompt is included</strong> into the calculation of receiver heads and attention to sentences within prompt is also accounted for, faithful and unfaithful CoT <strong>share 62-83%</strong> of top receiver heads.</p>
+                    <button class="expand-graph-btn" onclick="toggleGraph('divergent-circuits')">Show graph ▼</button>
+                    <div id="divergent-circuits" class="correlation-graph hidden">
+                        <img src="images/conclusion_divergent_circuits_web.png" alt="Divergent Circuits Comparison">
+                    </div>
                 </div>
 
                 <!-- Finding 3: Universal Receiver Heads -->
@@ -473,6 +505,10 @@
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
                         These heads may represent fundamental "answer extraction" circuits in the model, independent of reasoning faithfulness.
                     </p>
+                    <button class="expand-graph-btn" onclick="toggleGraph('universal-heads')">Show graph ▼</button>
+                    <div id="universal-heads" class="correlation-graph hidden">
+                        <img src="images/conclusion_universal_heads_web.png" alt="Universal Receiver Heads">
+                    </div>
                 </div>
             </div>
             </div> <!-- key-findings-content -->
