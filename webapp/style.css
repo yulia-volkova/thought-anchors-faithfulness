@@ -1668,6 +1668,28 @@ section h2 {
 
 
 /* ==============================================
+   Focus Illustration
+   ============================================== */
+.focus-illustration {
+    display: flex;
+    justify-content: center;
+    margin: calc(-1 * var(--spacing-xl)) auto var(--spacing-lg);
+}
+
+.focus-img {
+    width: 120px;
+    height: auto;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.focus-img:hover {
+    transform: scale(1.05) rotate(-3deg);
+}
+
+
+/* ==============================================
    TL;DR Section
    ============================================== */
 .tldr-section {
