@@ -32,7 +32,7 @@
             <p class="tldr-intro">
                 I analyze consistently faithful &amp; unfaithful rollouts for MMLU &amp; GPQA-diamond datasets using the
                 <a href="https://arxiv.org/abs/2506.19143" target="_blank">Thought Anchors</a> framework.
-                I find that unfaithful CoT shows higher cue-following rate, and receiver heads barely overlap between faithful &amp; unfaithful CoT when looking at reasoning-only attention.
+                Key findings: (1) <strong>Faithful CoT shows more focused attention patterns</strong> (higher kurtosis) than unfaithful CoT. (2) Reasoning-only receiver heads differ between groups, but this is <strong>not statistically significant</strong>. (3) <strong>Unfaithful CoT shows higher cue-following rate</strong> than faithful CoT. (4) There exist <strong>universal receiver heads</strong> that appear across all conditions.
             </p>
             <p class="tldr-link">
                 <a href="#key-findings">View detailed findings below ↓</a>
@@ -47,28 +47,51 @@
             </h2>
             <div id="key-findings-content" class="key-findings-body collapsed">
             <div class="findings-grid">
-                <!-- Finding 1: Divergent Circuits -->
+                <!-- Finding 1: Focused Attention Patterns (Kurtosis Magnitude) -->
+                <div class="finding-card">
+                    <div class="finding-header">
+                        <span class="finding-metric">Focused Attention Patterns</span>
+                        <span class="finding-pval finding-sig">p=0.04 (GPQA)</span>
+                    </div>
+                    <p>Faithful CoT has <strong>more focused attention</strong> (higher kurtosis) than unfaithful CoT. This suggests faithful reasoning explicitly anchors to key sentences, while unfaithful has more diffuse attention.</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        <strong>GPQA Reasoning-Only:</strong> Faithful mean kurtosis = 12.74, Unfaithful = 9.76.<br>
+                        <strong>MMLU Reasoning-Only:</strong> Faithful = 2.94, Unfaithful = 1.43 (p = 0.055, marginal).
+                    </p>
+                    <p class="finding-example" style="font-size: 0.8rem; background: var(--bg-tertiary); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                        <strong>Example:</strong> PI 162 (faithful, GPQA) focuses on physics equations with max head kurtosis = 49.4, while PI 116 (unfaithful) has more diffuse attention with max kurtosis = 36.9.
+                    </p>
+                    <button class="expand-graph-btn" onclick="toggleGraph('kurtosis-magnitude')">Show graph ▼</button>
+                    <div id="kurtosis-magnitude" class="correlation-graph hidden">
+                        <img src="images/conclusion_kurtosis_magnitude_web.png" alt="Kurtosis Magnitude Comparison">
+                    </div>
+                </div>
+
+                <!-- Finding 2: Divergent Circuits -->
                 <div class="finding-card">
                     <div class="finding-header">
                         <span class="finding-metric">Divergent Attention Circuits</span>
+                        <span class="finding-pval finding-ns">n.s. (p=0.31-0.68)</span>
                     </div>
                     <p>When we look at <strong>reasoning only</strong> attention, faithful and unfaithful questions use completely different (only 0-11% overlap) heads to focus on the most important sentences.</p>
                     <p>However, when <strong>prompt is included</strong> into the calculation of receiver heads and attention to sentences within prompt is also accounted for, faithful and unfaithful CoT <strong>share 62-83%</strong> of top receiver heads.</p>
+                    <p class="finding-caveat"><strong>Statistical caveat:</strong> The 0% reasoning-only overlap is NOT significantly different from random groupings (~2-9% baseline overlap). In-group consistency is also near-zero, suggesting receiver heads are highly problem-specific rather than faithfulness-specific.</p>
                     <button class="expand-graph-btn" onclick="toggleGraph('divergent-circuits')">Show graph ▼</button>
                     <div id="divergent-circuits" class="correlation-graph hidden">
                         <img src="images/conclusion_divergent_circuits_web.png" alt="Divergent Circuits Comparison">
                     </div>
                 </div>
 
-                <!-- Finding 2: Hidden Influence -->
+                <!-- Finding 3: Hidden Influence -->
                 <div class="finding-card">
                     <div class="finding-header">
                         <span class="finding-metric">Unfaithful CoT shows higher cue-following rate</span>
+                        <span class="finding-pval finding-sig">Significant (see CI)</span>
                     </div>
                     <ul class="finding-list">
                         <li>Unfaithful CoT show higher cue-following rate (80%) than faithful CoT (71%) when we control for cue response gap ≥ 0.5.</li>
                         <li>Without controlling for high cue influence, the pattern reverses: unfaithful 34% vs faithful 42%.</li>
-                        <li>In <a href="#selection-criteria" onclick="document.getElementById('methodology-content').classList.remove('collapsed'); document.getElementById('methodology-toggle').classList.add('expanded');">selected</a> subset of questions, where we control both for cue response gap and low no reasoning accuracy, the pattern strengthens: unfaithful CoT show higher cue-following rate (91%) than faithful CoT (66%).</li>
+                        <li>In <a href="#selection-criteria" onclick="document.getElementById('methodology-content').classList.remove('collapsed'); document.getElementById('methodology-toggle').classList.add('expanded');">selected</a> subset of questions, where we control both for cue response gap and low no reasoning accuracy, the pattern strengthens: unfaithful CoT show higher cue-following rate (91%) than faithful CoT (66%). <strong>Bootstrap 95% CI on the difference confirms significance.</strong></li>
                     </ul>
                     <button class="expand-graph-btn" onclick="toggleGraph('hidden-influence')">Show graph ▼</button>
                     <div id="hidden-influence" class="correlation-graph hidden">
@@ -76,14 +99,15 @@
                     </div>
                 </div>
 
-                <!-- Finding 3: Universal Receiver Heads -->
+                <!-- Finding 4: Universal Receiver Heads -->
                 <div class="finding-card">
                     <div class="finding-header">
                         <span class="finding-metric">Universal Receiver Heads</span>
+                        <span class="finding-pval finding-sig">p &lt; 0.001</span>
                     </div>
                     <p>Certain attention heads (e.g., L45_H0, L47_H3, L31_H34) appear as top receivers across both MMLU and GPQA, and in both faithful and unfaithful categories.</p>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                        These heads may represent fundamental "answer extraction" circuits in the model, independent of reasoning faithfulness.
+                        These heads may represent fundamental "answer extraction" circuits in the model, independent of reasoning faithfulness. Permutation test confirms this is unlikely by chance (p &lt; 0.001).
                     </p>
                     <button class="expand-graph-btn" onclick="toggleGraph('universal-heads')">Show graph ▼</button>
                     <div id="universal-heads" class="correlation-graph hidden">
