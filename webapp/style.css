@@ -450,7 +450,7 @@ section h2 {
     font-size: 1rem;
     line-height: 1.7;
     white-space: pre-wrap;
-    max-height: 150px;
+    max-height: 250px;
     overflow-y: auto;
     padding-right: var(--spacing-sm);
     transition: max-height 0.3s ease;
@@ -1684,6 +1684,34 @@ section h2 {
 
 .key-findings-section .expand-graph-btn:hover {
     background: var(--accent-shared-light);
+}
+
+/* Statistical Significance Badges */
+.finding-pval.finding-sig {
+    display: inline-block;
+    background-color: #22c55e;  /* Green for significant */
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.finding-pval.finding-ns {
+    display: inline-block;
+    background-color: #ef4444;  /* Red for not significant */
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.finding-pval.finding-pending {
+    display: inline-block;
+    background-color: #f59e0b;  /* Amber for needs verification */
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
 }
 
 
