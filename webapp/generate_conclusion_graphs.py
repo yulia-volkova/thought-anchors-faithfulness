@@ -288,14 +288,15 @@ def create_divergent_circuits_graph():
     # Try to load variance analysis for bootstrap data
     variance_data = load_variance_analysis()
 
-    # Extract bootstrap baseline if available
+    # Extract bootstrap baseline and in-group stats for error bars
     bootstrap_data = {}
     ingroup_data = {}
+    full_ingroup_data = {}
     if variance_data:
         for dataset in ['mmlu', 'gpqa']:
             if dataset in variance_data:
+                # Reasoning-only stats
                 reasoning_results = variance_data[dataset].get('reasoning_only', {})
-                # Note: JSON uses 'baseline' key, not 'bootstrap'
                 baseline = reasoning_results.get('baseline', {})
                 if baseline.get('mean') is not None:
                     bootstrap_data[dataset.upper()] = {
@@ -303,12 +304,25 @@ def create_divergent_circuits_graph():
                         'std': baseline['std'],
                         'p_value': baseline.get('p_value')
                     }
-                # Get in-group stats
+                # Get in-group stats for reasoning-only
                 ingroup = reasoning_results.get('ingroup_jaccard', {})
                 if ingroup:
+                    f_std = ingroup.get('faithful', {}).get('std', 0)
+                    u_std = ingroup.get('unfaithful', {}).get('std', 0)
                     ingroup_data[dataset.upper()] = {
-                        'faithful': ingroup.get('faithful', {}).get('mean'),
-                        'unfaithful': ingroup.get('unfaithful', {}).get('mean')
+                        'faithful_mean': ingroup.get('faithful', {}).get('mean'),
+                        'unfaithful_mean': ingroup.get('unfaithful', {}).get('mean'),
+                        'avg_std': (f_std + u_std) / 2  # Average std for error bar
+                    }
+
+                # Full attention stats
+                full_results = variance_data[dataset].get('full', {})
+                full_ingroup = full_results.get('ingroup_jaccard', {})
+                if full_ingroup:
+                    f_std = full_ingroup.get('faithful', {}).get('std', 0)
+                    u_std = full_ingroup.get('unfaithful', {}).get('std', 0)
+                    full_ingroup_data[dataset.upper()] = {
+                        'avg_std': (f_std + u_std) / 2
                     }
 
     fig, ax = plt.subplots(figsize=(12, 7), facecolor=COLORS['bg'])
@@ -318,6 +332,22 @@ def create_divergent_circuits_graph():
 
     full_vals = [data[d]['full'] for d in data]
     reasoning_vals = [data[d]['reasoning'] for d in data]
+
+    # Error bars for full attention (from in-group consistency)
+    full_errs = []
+    for d in data.keys():
+        if d in full_ingroup_data:
+            full_errs.append(full_ingroup_data[d]['avg_std'])
+        else:
+            full_errs.append(0.1)  # Placeholder
+
+    # Error bars for reasoning-only (from in-group consistency)
+    reasoning_errs = []
+    for d in data.keys():
+        if d in ingroup_data:
+            reasoning_errs.append(ingroup_data[d]['avg_std'])
+        else:
+            reasoning_errs.append(0.05)  # Placeholder
 
     # Bootstrap baseline values (use actual data or placeholder)
     bootstrap_vals = []
@@ -330,24 +360,26 @@ def create_divergent_circuits_graph():
             bootstrap_vals.append(0.4)  # Placeholder
             bootstrap_errs.append(0.1)
 
-    # Orange bars first (behind), very low opacity - Full attention
-    # Positioned at same x as reasoning bars but drawn first so they're behind
+    # Orange bars first (behind), with error bars - Full attention
     bars1 = ax.bar(x - width/2, full_vals, width, label='Full (with prompt)',
-                   color=COLORS['orange'], edgecolor=COLORS['orange'], linewidth=1, alpha=0.15,
+                   color=COLORS['orange'], edgecolor=COLORS['orange'], linewidth=1, alpha=0.3,
+                   yerr=full_errs, capsize=4, error_kw={'elinewidth': 2, 'capthick': 2, 'color': COLORS['text_secondary']},
                    zorder=1)
-    # Violet bars second - Reasoning only (observed) - on top, same position
+    # Violet bars second - Reasoning only (observed) - with error bars
     bars2 = ax.bar(x - width/2, reasoning_vals, width, label='Reasoning only (observed)',
-                   color=COLORS['violet'], edgecolor='white', linewidth=2, zorder=2)
+                   color=COLORS['violet'], edgecolor='white', linewidth=2,
+                   yerr=reasoning_errs, capsize=4, error_kw={'elinewidth': 2, 'capthick': 2, 'color': COLORS['text_secondary']},
+                   zorder=2)
     # Gray bars - Bootstrap baseline (to the right)
     bars3 = ax.bar(x + width/2 + 0.05, bootstrap_vals, width, label='Random baseline (bootstrap)',
                    color='#9ca3af', edgecolor='white', linewidth=2, alpha=0.7,
                    yerr=bootstrap_errs, capsize=4, error_kw={'elinewidth': 2, 'capthick': 2}, zorder=2)
 
-    # Add value labels
-    for bars, show_pval in [(bars1, False), (bars2, True), (bars3, False)]:
-        for i, bar in enumerate(bars):
+    # Add value labels (positioned above error bars)
+    for bars, errs in [(bars1, full_errs), (bars2, reasoning_errs), (bars3, bootstrap_errs)]:
+        for i, (bar, err) in enumerate(zip(bars, errs)):
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2, height + 0.03,
+            ax.text(bar.get_x() + bar.get_width()/2, height + err + 0.03,
                    f'{height:.2f}', ha='center', va='bottom', fontsize=12, fontweight='bold',
                    color=COLORS['text'])
 
@@ -365,7 +397,7 @@ def create_divergent_circuits_graph():
                 sig_text = f'p={p_val:.2f}*'
                 sig_color = '#22c55e'
             else:
-                sig_text = f'n.s. (p={p_val:.2f})'
+                sig_text = f'p={p_val:.2f}'
                 sig_color = '#ef4444'  # Red for not significant
 
             # Draw significance annotation with colored background
@@ -393,8 +425,8 @@ def create_divergent_circuits_graph():
         for dataset in ['MMLU', 'GPQA']:
             if dataset in ingroup_data:
                 ig = ingroup_data[dataset]
-                if ig['faithful'] is not None and ig['unfaithful'] is not None:
-                    footer_parts.append(f"{dataset}: In-group Jaccard F={ig['faithful']:.2f}, U={ig['unfaithful']:.2f}")
+                if ig.get('faithful_mean') is not None and ig.get('unfaithful_mean') is not None:
+                    footer_parts.append(f"{dataset}: In-group Jaccard F={ig['faithful_mean']:.2f}, U={ig['unfaithful_mean']:.2f}")
 
     # Add main annotation
     annotation = 'High overlap in prompt attention, near-zero overlap in reasoning attention'
