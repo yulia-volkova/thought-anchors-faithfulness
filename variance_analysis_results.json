@@ -1,0 +1,314 @@
+{
+  "mmlu": {
+    "full": {
+      "ingroup_jaccard": {
+        "faithful": {
+          "mean": 0.3506944444444445,
+          "std": 0.10165117465884892,
+          "percentile_5": 0.25,
+          "percentile_95": 0.42857142857142855,
+          "n_rollouts": 15,
+          "n_iterations": 1000
+        },
+        "unfaithful": {
+          "mean": 0.6495238095238094,
+          "std": 0.061544740652965765,
+          "percentile_5": 0.42857142857142855,
+          "percentile_95": 0.6666666666666666,
+          "n_rollouts": 20,
+          "n_iterations": 1000
+        }
+      },
+      "outgroup": {
+        "jaccard": 1.0,
+        "faithful_heads": [
+          [
+            31,
+            34
+          ],
+          [
+            45,
+            0
+          ],
+          [
+            36,
+            6
+          ],
+          [
+            47,
+            3
+          ],
+          [
+            44,
+            33
+          ]
+        ],
+        "unfaithful_heads": [
+          [
+            31,
+            34
+          ],
+          [
+            45,
+            0
+          ],
+          [
+            36,
+            6
+          ],
+          [
+            47,
+            3
+          ],
+          [
+            44,
+            33
+          ]
+        ],
+        "n_faithful_rollouts": 15,
+        "n_unfaithful_rollouts": 20
+      },
+      "baseline": {
+        "mean": 0.878297619047619,
+        "std": 0.18757435071588352,
+        "percentile_5": 0.42857142857142855,
+        "percentile_95": 1.0,
+        "n_iterations": 1000,
+        "p_value": 0.5164533820421102
+      }
+    },
+    "reasoning_only": {
+      "ingroup_jaccard": {
+        "faithful": {
+          "mean": 0.003222222222222222,
+          "std": 0.018645159567797803,
+          "percentile_5": 0.0,
+          "percentile_95": 0.0,
+          "n_rollouts": 15,
+          "n_iterations": 1000
+        },
+        "unfaithful": {
+          "mean": 0.03969444444444444,
+          "std": 0.05852454771448631,
+          "percentile_5": 0.0,
+          "percentile_95": 0.1111111111111111,
+          "n_rollouts": 20,
+          "n_iterations": 1000
+        }
+      },
+      "outgroup": {
+        "jaccard": 0.0,
+        "faithful_heads": [
+          [
+            20,
+            30
+          ],
+          [
+            15,
+            23
+          ],
+          [
+            10,
+            39
+          ],
+          [
+            9,
+            21
+          ],
+          [
+            19,
+            15
+          ]
+        ],
+        "unfaithful_heads": [
+          [
+            33,
+            23
+          ],
+          [
+            40,
+            1
+          ],
+          [
+            18,
+            16
+          ],
+          [
+            39,
+            14
+          ],
+          [
+            37,
+            12
+          ]
+        ],
+        "n_faithful_rollouts": 15,
+        "n_unfaithful_rollouts": 20
+      },
+      "baseline": {
+        "mean": 0.01775,
+        "std": 0.043591458770931006,
+        "percentile_5": 0.0,
+        "percentile_95": 0.1111111111111111,
+        "n_iterations": 1000,
+        "p_value": 0.6838685483659148
+      }
+    }
+  },
+  "gpqa": {
+    "full": {
+      "ingroup_jaccard": {
+        "faithful": {
+          "mean": 0.7892142857142855,
+          "std": 0.20083286194090388,
+          "percentile_5": 0.42857142857142855,
+          "percentile_95": 1.0,
+          "n_rollouts": 25,
+          "n_iterations": 1000
+        },
+        "unfaithful": {
+          "mean": 0.6244642857142857,
+          "std": 0.09374421750874305,
+          "percentile_5": 0.42857142857142855,
+          "percentile_95": 0.6666666666666666,
+          "n_rollouts": 25,
+          "n_iterations": 1000
+        }
+      },
+      "outgroup": {
+        "jaccard": 0.6666666666666666,
+        "faithful_heads": [
+          [
+            31,
+            34
+          ],
+          [
+            45,
+            0
+          ],
+          [
+            47,
+            3
+          ],
+          [
+            36,
+            25
+          ],
+          [
+            44,
+            33
+          ]
+        ],
+        "unfaithful_heads": [
+          [
+            31,
+            34
+          ],
+          [
+            45,
+            0
+          ],
+          [
+            47,
+            3
+          ],
+          [
+            19,
+            11
+          ],
+          [
+            44,
+            33
+          ]
+        ],
+        "n_faithful_rollouts": 25,
+        "n_unfaithful_rollouts": 25
+      },
+      "baseline": {
+        "mean": 0.888904761904762,
+        "std": 0.15970573137780825,
+        "percentile_5": 0.6666666666666666,
+        "percentile_95": 1.0,
+        "n_iterations": 1000,
+        "p_value": 0.16405949660376895
+      }
+    },
+    "reasoning_only": {
+      "ingroup_jaccard": {
+        "faithful": {
+          "mean": 0.010861111111111111,
+          "std": 0.034539731550137384,
+          "percentile_5": 0.0,
+          "percentile_95": 0.1111111111111111,
+          "n_rollouts": 25,
+          "n_iterations": 1000
+        },
+        "unfaithful": {
+          "mean": 0.03805555555555556,
+          "std": 0.060687292993378744,
+          "percentile_5": 0.0,
+          "percentile_95": 0.1111111111111111,
+          "n_rollouts": 25,
+          "n_iterations": 1000
+        }
+      },
+      "outgroup": {
+        "jaccard": 0.0,
+        "faithful_heads": [
+          [
+            38,
+            18
+          ],
+          [
+            14,
+            9
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            9,
+            17
+          ],
+          [
+            44,
+            33
+          ]
+        ],
+        "unfaithful_heads": [
+          [
+            12,
+            19
+          ],
+          [
+            1,
+            17
+          ],
+          [
+            36,
+            6
+          ],
+          [
+            15,
+            29
+          ],
+          [
+            42,
+            4
+          ]
+        ],
+        "n_faithful_rollouts": 25,
+        "n_unfaithful_rollouts": 25
+      },
+      "baseline": {
+        "mean": 0.09358333333333334,
+        "std": 0.09262716662704573,
+        "percentile_5": 0.0,
+        "percentile_95": 0.25,
+        "n_iterations": 1000,
+        "p_value": 0.31234068696644
+      }
+    }
+  }
+}
