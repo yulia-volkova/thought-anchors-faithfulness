@@ -1228,11 +1228,21 @@ section h2 {
 .finding-caveat {
     margin-top: var(--spacing-sm) !important;
     padding: var(--spacing-sm);
-    background: #fff8e6;
-    border-left: 3px solid #f0ad4e;
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--border-color);
     border-radius: var(--radius-xs);
     font-size: 0.8rem !important;
-    color: #856404;
+    color: var(--text-secondary);
+}
+
+.finding-discussion {
+    margin-top: var(--spacing-sm) !important;
+    padding: var(--spacing-sm);
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--border-color);
+    border-radius: var(--radius-xs);
+    font-size: 0.9rem;
+    color: var(--text-primary);
 }
 
 /* Expandable Graph Sections */
@@ -1666,14 +1676,31 @@ section h2 {
 }
 
 .key-findings-section .finding-caveat {
-    background: #fff8e6;
-    border-left: 3px solid #f0ad4e;
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--border-color);
     border-radius: var(--radius-sm);
     padding: var(--spacing-sm);
     font-size: 0.85rem !important;
-    color: #856404;
+    color: var(--text-secondary);
     margin-top: var(--spacing-sm);
     margin-bottom: var(--spacing-sm);
+}
+
+.key-findings-section .finding-discussion {
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-top: var(--spacing-sm);
+    margin-bottom: 0;
+}
+
+.key-findings-section .finding-discussion p {
+    margin-top: 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
 }
 
 .key-findings-section .expand-graph-btn {

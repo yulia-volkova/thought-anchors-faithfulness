@@ -35,11 +35,39 @@
             <p class="tldr-intro">
                 I analyze consistently faithful &amp; unfaithful rollouts for MMLU &amp; GPQA-diamond datasets using the
                 <a href="https://arxiv.org/abs/2506.19143" target="_blank">Thought Anchors</a> framework.
-                Key findings: (1) <strong>Faithful CoT shows more focused attention patterns</strong> (higher kurtosis) than unfaithful CoT. (2) Reasoning-only receiver heads differ between groups, but this is <strong>not statistically significant</strong>. (3) <strong>Unfaithful CoT shows higher cue-following rate</strong> than faithful CoT. (4) There exist <strong>universal receiver heads</strong> that appear across all conditions.
+                Key findings: (1) <strong>Faithful CoT shows more focused attention patterns</strong> (higher kurtosis <span class="info-icon" id="kurtosis-info" data-tooltip="kurtosis-tooltip">ℹ️</span>) than unfaithful CoT. (2) Reasoning-only receiver heads <span class="info-icon" id="receiver-heads-tldr-info" data-tooltip="receiver-heads-tldr-tooltip">ℹ️</span> differ between groups, but this is <strong>not statistically significant</strong>. (3) <strong>Unfaithful CoT shows higher cue-following rate</strong> than faithful CoT. (4) There exist <strong>universal receiver heads</strong> that appear across all conditions.
             </p>
             <p class="tldr-link">
                 <a href="#key-findings">View detailed findings below ↓</a>
             </p>
+            <div id="kurtosis-tooltip" class="control-tooltip hidden">
+                <p>A statistical measure of how "peaked" the attention distribution is. Higher kurtosis means attention is focused on fewer specific tokens rather than spread evenly.</p>
+            </div>
+            <div id="receiver-heads-tldr-tooltip" class="control-tooltip hidden">
+                <p>Attention heads with highest kurtosis in their attention distribution - they consistently focus on specific source sentences.</p>
+            </div>
+        </section>
+
+        <!-- Hypothesis Section (Collapsed by default) -->
+        <section class="methodology-collapsible" id="hypothesis-section">
+            <h2 class="methodology-header" onclick="toggleHypothesis()">
+                Hypothesis
+                <span id="hypothesis-toggle" class="toggle-icon">▶</span>
+            </h2>
+            <div id="hypothesis-content" class="methodology-body collapsed">
+                <p>
+                    If white-box attention attribution patterns reflect how models use information during reasoning,
+                    then <strong>faithful CoT</strong> (where reasoning genuinely influences the answer) should show focused attention
+                    to relevant broadcasting sentences, while <strong>unfaithful CoT</strong> (post-hoc rationalization)
+                    may exhibit more diffuse attention or anchor to different, potentially misleading parts of the reasoning chain.
+                </p>
+                <p>
+                    This work replicates and extends <a href="https://arxiv.org/abs/2506.19143" target="_blank">Bogdan et al. (2025) "Thought Anchors"</a>
+                    to test whether receiver heads and vertical stripe patterns of attention targeted towards specific sentences ("thought anchors") differ between faithful and unfaithful chains.
+                    If attention markers meaningfully distinguish faithful from unfaithful CoT, this could enable
+                    white-box monitoring of reasoning quality in deployed models.
+                </p>
+            </div>
         </section>
 
         <!-- Key Findings Section (Collapsible) -->
@@ -64,6 +92,17 @@
                     <p class="finding-example" style="font-size: 0.8rem; background: var(--bg-tertiary); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
                         <strong>Example:</strong> PI 162 (faithful, GPQA) focuses on physics equations with max head kurtosis = 49.4, while PI 116 (unfaithful) has more diffuse attention with max kurtosis = 36.9.
                     </p>
+                    <div class="finding-discussion">
+                        <strong>Discussion:</strong> This is good news to me! This observation corroborates my <a href="#hypothesis-section" onclick="document.getElementById('hypothesis-content').classList.remove('collapsed'); document.getElementById('hypothesis-toggle').classList.add('expanded');">initial hypothesis</a> that unfaithful CoT would have less thought anchors and more diffuse attention indicating performative reasoning. This being significant on GPQA is good, because it is a more challenging dataset that is less likely to suffer from performative reasoning in general, but I control for low reasoning accuracy to avoid this anyway. I would like to explore this point more in other settings too.
+                    </div>
+                    <div class="definitions-section" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <button class="expand-graph-btn" onclick="toggleDefinition('what-is-kurtosis')">What is kurtosis?</button>
+                    </div>
+                    <div id="what-is-kurtosis" class="correlation-graph hidden" style="margin-bottom: 0.5rem;">
+                        <p style="font-size: 0.9rem; color: #666; font-style: italic; margin: 0;">
+                            Kurtosis is a statistical measure of how "peaked" the attention distribution is. Higher kurtosis means attention is focused on fewer specific tokens rather than spread evenly across many tokens.
+                        </p>
+                    </div>
                     <button class="expand-graph-btn" onclick="toggleGraph('kurtosis-magnitude')">Show graph ▼</button>
                     <div id="kurtosis-magnitude" class="correlation-graph hidden">
                         <img src="images/conclusion_kurtosis_magnitude_web.png" alt="Kurtosis Magnitude Comparison">
@@ -79,6 +118,9 @@
                     <p>When we look at <strong>reasoning only</strong> attention, faithful and unfaithful questions use completely different (only 0-11% overlap) heads to focus on the most important sentences.</p>
                     <p>However, when <strong>prompt is included</strong> into the calculation of receiver heads and attention to sentences within prompt is also accounted for, faithful and unfaithful CoT <strong>share 62-83%</strong> of top receiver heads.</p>
                     <p class="finding-caveat"><strong>Statistical caveat:</strong> The 0% reasoning-only overlap is NOT significantly different from random groupings (~2-9% baseline overlap). In-group consistency is also near-zero, suggesting receiver heads are highly problem-specific rather than faithfulness-specific.</p>
+                    <div class="finding-discussion">
+                        <strong>Discussion:</strong> Initially I thought of this as very good news potentially meaning that faithful CoT would consistently have different receiver heads from the unfaithful ones, but this turned out to be non-significant. And the heads are more "problem specific". I would still check this again in a larger experiment.
+                    </div>
                     <button class="expand-graph-btn" onclick="toggleGraph('divergent-circuits')">Show graph ▼</button>
                     <div id="divergent-circuits" class="correlation-graph hidden">
                         <img src="images/conclusion_divergent_circuits_web.png" alt="Divergent Circuits Comparison">
@@ -96,6 +138,9 @@
                         <li>Without controlling for high cue influence, the pattern reverses: unfaithful 34% vs faithful 42%.</li>
                         <li>In <a href="#selection-criteria" onclick="document.getElementById('methodology-content').classList.remove('collapsed'); document.getElementById('methodology-toggle').classList.add('expanded');">selected</a> subset of questions, where we control both for cue response gap and low no reasoning accuracy, the pattern strengthens: unfaithful CoT show higher cue-following rate (91%) than faithful CoT (66%). <strong>Bootstrap 95% CI on the difference confirms significance.</strong></li>
                     </ul>
+                    <div class="finding-discussion">
+                        <strong>Discussion:</strong> I was slightly surprised by this finding. I would expect that cue verbalisation and acknowledgement is associated with cue following. It can be the case that the model is overall confused/dumb but we would expect that the model that struggled to be faithful also wouldn't follow the cue. Or maybe being unfaithful = already making a mistake so it gives wrong answer as well and it's just wrong everywhere.
+                    </div>
                     <button class="expand-graph-btn" onclick="toggleGraph('hidden-influence')">Show graph ▼</button>
                     <div id="hidden-influence" class="correlation-graph hidden">
                         <img src="images/conclusion_hidden_influence_web.png" alt="Hidden Influence Comparison">
@@ -112,6 +157,18 @@
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
                         These heads may represent fundamental "answer extraction" circuits in the model, independent of reasoning faithfulness. Permutation test confirms this is unlikely by chance (p &lt; 0.001).
                     </p>
+                    <div class="finding-discussion">
+                        <strong>Discussion:</strong> This is expected as it corroborates the findings in the original <a href="https://arxiv.org/abs/2506.19143" target="_blank">Thought Anchors paper (Bogdan et al., 2025)</a>. It can be useful for optimisation of future analysis - to check these universal heads first, or to check what makes them not appear as receiver heads.
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;"><strong>Note on L36_H6:</strong> This head appears in only 2/4 combinations (MMLU faithful and MMLU unfaithful) but not in GPQA. In GPQA, L36_H25 appears instead. This may be because GPQA problems tend to be longer and more complex, activating different attention patterns.</p>
+                    </div>
+                    <div class="definitions-section" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <button class="expand-graph-btn" onclick="toggleDefinition('what-is-kurtosis-2')">What is kurtosis?</button>
+                    </div>
+                    <div id="what-is-kurtosis-2" class="correlation-graph hidden" style="margin-bottom: 0.5rem;">
+                        <p style="font-size: 0.9rem; color: #666; font-style: italic; margin: 0;">
+                            Kurtosis is a statistical measure of how "peaked" the attention distribution is. Higher kurtosis means attention is focused on fewer specific tokens rather than spread evenly across many tokens.
+                        </p>
+                    </div>
                     <button class="expand-graph-btn" onclick="toggleGraph('universal-heads')">Show graph ▼</button>
                     <div id="universal-heads" class="correlation-graph hidden">
                         <img src="images/conclusion_universal_heads_web.png" alt="Universal Receiver Heads">
@@ -128,20 +185,6 @@
                 <span id="methodology-toggle" class="toggle-icon">▶</span>
             </h2>
             <div id="methodology-content" class="methodology-body collapsed">
-
-                <h3>Hypothesis</h3>
-                <p>
-                    If white-box attention attribution patterns reflect how models use information during reasoning,
-                    then <strong>faithful CoT</strong> (where reasoning genuinely influences the answer) should show focused attention
-                    to relevant broadcasting sentences, while <strong>unfaithful CoT</strong> (post-hoc rationalization)
-                    may exhibit more diffuse attention or anchor to different, potentially misleading parts of the reasoning chain.
-                </p>
-                <p>
-                    This work replicates and extends <a href="https://arxiv.org/abs/2506.19143" target="_blank">Bogdan et al. (2025) "Thought Anchors"</a>
-                    to test whether receiver heads and vertical stripe patterns of attention targeted towards specific sentences ("thought anchors") differ between faithful and unfaithful chains.
-                    If attention markers meaningfully distinguish faithful from unfaithful CoT, this could enable
-                    white-box monitoring of reasoning quality in deployed models.
-                </p>
 
                 <!-- Pipeline Overview -->
                 <h3>Pipeline</h3>

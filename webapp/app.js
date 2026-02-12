@@ -143,6 +143,40 @@ function setupEventListeners() {
             receiverHeadsTooltip.classList.add('hidden');
         });
     }
+
+    // Setup tooltip for kurtosis info in TL;DR
+    setupInfoTooltip('kurtosis-info', 'kurtosis-tooltip');
+
+    // Setup tooltip for receiver heads info in TL;DR
+    setupInfoTooltip('receiver-heads-tldr-info', 'receiver-heads-tldr-tooltip');
+}
+
+// Helper function to setup info icon tooltips
+function setupInfoTooltip(infoId, tooltipId) {
+    const infoEl = document.getElementById(infoId);
+    const tooltipEl = document.getElementById(tooltipId);
+    if (infoEl && tooltipEl) {
+        infoEl.addEventListener('mouseenter', (e) => {
+            const rect = infoEl.getBoundingClientRect();
+            tooltipEl.style.position = 'fixed';
+            tooltipEl.style.top = (rect.bottom + 8) + 'px';
+            tooltipEl.style.left = Math.max(10, rect.left - 150) + 'px';
+            tooltipEl.classList.remove('hidden');
+        });
+        infoEl.addEventListener('mouseleave', (e) => {
+            setTimeout(() => {
+                if (!tooltipEl.matches(':hover') && !infoEl.matches(':hover')) {
+                    tooltipEl.classList.add('hidden');
+                }
+            }, 100);
+        });
+        tooltipEl.addEventListener('mouseenter', () => {
+            tooltipEl.classList.remove('hidden');
+        });
+        tooltipEl.addEventListener('mouseleave', () => {
+            tooltipEl.classList.add('hidden');
+        });
+    }
 }
 
 function updateUI() {
@@ -1309,10 +1343,20 @@ function toggleSidenote(id) {
     toggle.classList.toggle('expanded');
 }
 
+// Toggle hypothesis visibility
+function toggleHypothesis() {
+    const content = document.getElementById('hypothesis-content');
+    const toggle = document.getElementById('hypothesis-toggle');
+
+    content.classList.toggle('collapsed');
+    toggle.classList.toggle('expanded');
+}
+
 // Make toggle functions available globally
 window.toggleMethodology = toggleMethodology;
 window.toggleKeyFindings = toggleKeyFindings;
 window.toggleQuestionExpand = toggleQuestionExpand;
 window.toggleSidenote = toggleSidenote;
 window.toggleGraph = toggleGraph;
+window.toggleHypothesis = toggleHypothesis;
 
