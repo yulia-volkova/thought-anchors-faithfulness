@@ -216,9 +216,9 @@
                 <h3 id="selection-criteria">Problem Selection Criteria</h3>
                 <p>Problems were selected from MMLU and GPQA rollouts using the following criteria:</p>
                 <ul class="clean-list">
-                    <li><strong>Low no-reasoning accuracy (&lt;50%)</strong> — Problems where the model struggles without CoT</li>
-                    <li><strong>High cue response gap (≥0.5)</strong> — Large difference in cue-following between cued and uncued conditions</li>
-                    <li><strong>Cue ≠ Ground Truth</strong> — The cue answer differs from the correct answer</li>
+                    <li><strong>Low no-reasoning accuracy (&lt;50%)</strong> - Problems where the model struggles without CoT</li>
+                    <li><strong>High cue response gap (≥0.5)</strong> - Large difference in cue-following between cued and uncued conditions</li>
+                    <li><strong>Cue ≠ Ground Truth</strong> - The cue answer differs from the correct answer</li>
                     <li><strong>Each problem is unique</strong></li>
                 </ul>
 
@@ -237,7 +237,7 @@
                         <button class="expand-graph-btn" onclick="toggleDefinition('what-is-gap')">What is "Gap"?</button>
                         <div id="what-is-gap" class="correlation-graph hidden" style="margin-top: 0.5rem;">
                             <p style="font-size: 0.9rem; color: #666; font-style: italic; margin: 0;">
-                                "Gap" refers to the mean cue response gap — the average increase in cue-following behavior when a misleading cue is present.
+                                "Gap" refers to the mean cue response gap, the average increase in cue-following behavior when a misleading cue is present.
                             </p>
                         </div>
                     </div>
@@ -251,7 +251,7 @@
                             <span class="finding-metric">r(accuracy, cue following) = -0.459</span>
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
-                        <p>Lower base accuracy correlates with <strong>more cue following</strong> — the model is more susceptible to misleading cues on harder problems.</p>
+                        <p>Lower base accuracy correlates with <strong>more cue following</strong> - the model is more susceptible to misleading cues on harder problems.</p>
                         <p class="finding-caveat">Cue following behaviour is likely confounded by problem difficulty. On harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('mmlu-acc-cue-follow')">Show graph ▼</button>
                         <div id="mmlu-acc-cue-follow" class="correlation-graph hidden">
@@ -263,7 +263,7 @@
                             <span class="finding-metric">Gap = 0.289</span>
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
-                        <p>Mean cue response gap of 0.289 — <strong>79.7%</strong> of problems show increased cue following when cued.</p>
+                        <p>Mean cue response gap of 0.289 - <strong>79.7%</strong> of problems show increased cue following when cued.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('mmlu-gap-dist')">Show distribution ▼</button>
                         <div id="mmlu-gap-dist" class="correlation-graph hidden">
                             <img src="images/mmlu_gap_distribution.png" alt="Cue Response Gap Distribution (MMLU)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
@@ -274,7 +274,7 @@
                             <span class="finding-metric">r(accuracy, gap) = 0.008</span>
                             <span class="finding-pval">p = 0.92</span>
                         </div>
-                        <p>No significant correlation between base accuracy and cue response gap — the <em>change</em> in behavior is consistent across difficulty levels.</p>
+                        <p>No significant correlation between base accuracy and cue response gap - the <em>change</em> in behavior is consistent across difficulty levels.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('mmlu-acc-gap')">Show graph ▼</button>
                         <div id="mmlu-acc-gap" class="correlation-graph hidden">
                             <img src="images/mmlu_accuracy_vs_gap.png" alt="Accuracy vs Cue Response Gap correlation" style="width: 100%; max-width: 600px; margin-top: 1rem;">
@@ -290,7 +290,7 @@
                             <span class="finding-metric">r(accuracy, cue following) = -0.522</span>
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
-                        <p>Lower base accuracy correlates with <strong>more cue following</strong> — effect is even stronger than MMLU.</p>
+                        <p>Lower base accuracy correlates with <strong>more cue following</strong> - effect is even stronger than MMLU.</p>
                         <p class="finding-caveat">Cue following behaviour is likely confounded by problem difficulty. On harder problems, the model may fall back to the cue when struggling to find an answer. To control for this, future work should compare problems with equal uncued accuracy levels.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('gpqa-acc-cue-follow')">Show graph ▼</button>
                         <div id="gpqa-acc-cue-follow" class="correlation-graph hidden">
@@ -302,7 +302,7 @@
                             <span class="finding-metric">Gap = 0.183</span>
                             <span class="finding-pval">p &lt; 0.0001</span>
                         </div>
-                        <p>Mean cue response gap of 0.183 — <strong>67.2%</strong> of problems show increased cue following when cued.</p>
+                        <p>Mean cue response gap of 0.183 - <strong>67.2%</strong> of problems show increased cue following when cued.</p>
                         <button class="expand-graph-btn" onclick="toggleGraph('gpqa-gap-dist')">Show distribution ▼</button>
                         <div id="gpqa-gap-dist" class="correlation-graph hidden">
                             <img src="images/gpqa_gap_distribution.png" alt="Cue Response Gap Distribution (GPQA)" style="width: 100%; max-width: 600px; margin-top: 1rem;">
@@ -323,7 +323,7 @@
 
                 <h3>Attention Analysis</h3>
                 <p>
-                    For each problem, we identify <strong>receiver heads</strong> — attention heads with high kurtosis
+                    For each problem, we identify <strong>receiver heads</strong>, attention heads with high kurtosis
                     in their attention distribution. High kurtosis indicates the head consistently
                     attends to specific source sentences (creating "vertical stripes" in the attention matrix).
                     I compare which source sentences receive the most attention in cued vs. uncued rollouts.
@@ -608,12 +608,13 @@
         <section class="future-directions-section">
             <h2>Future Directions</h2>
             <p>
-                (1) Test on domains where post-hoc rationalization is common,
-                such as the hiring-scenario dataset (<a href="https://arxiv.org/abs/2506.10922" target="_blank">Karvonen & Marks, 2025</a>), where models explain choices with
-                acceptable narratives that may not reflect true decision factors.<br>
-                (2) Combine with Verbalization Fine-Tuning (<a href="https://arxiv.org/abs/2506.22777" target="_blank">Turpin et al., 2025</a>) — if VFT increases cue admission,
-                do receiver heads shift to anchor on the verbalized cue sentence post-training?<br>
+                (1) Validate findings in other settings - test on domains where post-hoc rationalization is common,
+                such as the hiring-scenario dataset (<a href="https://arxiv.org/abs/2506.10922" target="_blank">Karvonen & Marks, 2025</a>), and try to replicate/corroborate the kurtosis-faithfulness correlation (unfaithful CoT has more diffuse attention).<br>
+                (2) Combine with Verbalization Fine-Tuning (<a href="https://arxiv.org/abs/2506.22777" target="_blank">Turpin et al., 2025</a>) - if VFT increases cue admission,
+                do receiver heads shift attention to anchor on the verbalized cue sentence post-training?<br>
                 (2.1) Try model diffing between VFT model and original.<br>
+                (3) Run a larger experiment to double-check if receiver heads are faithfulness-specific or problem-specific. Current results suggest heads are problem-specific, but this needs more data.<br>
+                (4) Use universal receiver heads (L45_H0, L47_H3, L31_H34) to optimise future analysis - check these heads first, or investigate what makes them not appear as receiver heads in some cases.<br>
                 Such experiments could validate whether attention markers reliably track cue-following behavior.
             </p>
         </section>
