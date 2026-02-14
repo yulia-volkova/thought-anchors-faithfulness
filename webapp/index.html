@@ -611,7 +611,7 @@
                 (1) Validate findings in other settings - test on domains where post-hoc rationalization is common,
                 such as the hiring-scenario dataset (<a href="https://arxiv.org/abs/2506.10922" target="_blank">Karvonen & Marks, 2025</a>), and try to replicate/corroborate the kurtosis-faithfulness correlation (unfaithful CoT has more diffuse attention).<br>
                 (2) Combine with Verbalization Fine-Tuning (<a href="https://arxiv.org/abs/2506.22777" target="_blank">Turpin et al., 2025</a>) - if VFT increases cue admission,
-                do receiver heads shift attention to anchor on the verbalized cue sentence post-training?<br>
+                do receiver heads shift attention to anchor on the verbalized cue sentence after fine-tuning?<br>
                 (2.1) Try model diffing between VFT model and original.<br>
                 (3) Run a larger experiment to double-check if receiver heads are faithfulness-specific or problem-specific. Current results suggest heads are problem-specific, but this needs more data.<br>
                 (4) Use universal receiver heads (L45_H0, L47_H3, L31_H34) to optimise future analysis - check these heads first, or investigate what makes them not appear as receiver heads in some cases.<br>
