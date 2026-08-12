@@ -2,7 +2,8 @@
 
 Yulia Volkova - Athena Fellowship / MATS 9.1 extension - Nov 2025 to Aug 2026.
 Draft for review.
-Code, data pipelines, and all analyses: https://github.com/yulia-volkova/thought-anchors-faithfulness
+Repository (reviewers: please inspect the code and result files directly):
+https://github.com/yulia-volkova/thought-anchors-faithfulness
 (key files: FEEDBACK_AND_PLAN.md, extract_within_problem.py, entropy_analysis.py, hiring_attention.py, cue_conditioning_control.py)
 
 > **Review prompt (for the reviewing agent):** You are reviewing a research
@@ -67,7 +68,7 @@ professor thinks the answer is (X)", X != ground truth. Labels: verbalizing
 terminology per Zaman & Srivastava's critique (see 6.1); we do not equate
 silence with unfaithfulness. Attention: sentence-level received-attention
 (vert) scores per head (proximity_ignore=3, drop_first=1), Thought Anchors
-framework (Bogdan et al. 2025, arXiv:2506.19143).
+framework (Bogdan et al. 2025, [arXiv:2506.19143](https://arxiv.org/abs/2506.19143)).
 
 Final analysis population ("strict"): problems with cue-response gap >= 0.5,
 no-reasoning accuracy < 0.5, and mixed behavior (>=2 verbalizing and >=2
@@ -119,14 +120,23 @@ is not legible in attention summaries.
 
 ## 5. Hiring setting: the inverted targeted-attention result
 
-Data: Karvonen & Marks resume-screening logs (arXiv:2506.10922;
-github.com/adamkarvonen/llm_bias; HF adamkarvonen/bias_eval). Model:
+Data: Karvonen & Marks resume-screening logs ([arXiv:2506.10922](https://arxiv.org/abs/2506.10922);
+[github.com/adamkarvonen/llm_bias](https://github.com/adamkarvonen/llm_bias); HF adamkarvonen/bias_eval). Model:
 google/gemma-3-12b-it (their logged runs, our re-extraction). 111 resumes x 4
 names (White/Black x Female/Male) x 4 prompt versions. Ground truth:
 name-sensitivity = delta p(yes) across a resume's name variants (behavioral -
 no verbalization label, no LLM judge). Measure: attention from the final
 (decision) token to the name's token span, top-5 heads over the 8 global
 attention layers (local layers cannot reach the name).
+
+Scope note: we use ONE condition of their much larger matrix (job-description
+screening, "gm_high_bar" prompts v1-v4). Their headline manipulations -
+company identity (Meta/Palantir), selective anti-bias statements, locations,
+college names - are not used here. Their CoT conditions exist only for closed
+API models, so the open-weight logs we can extract attention from are direct
+Yes/No decisions without CoT; their paper separately shows CoTs in this
+setting look clean while decisions are biased, which is what makes the
+setting canonical for unverbalized influence.
 
 Result: attention-to-name is inversely related to name-sensitivity:
 resume-level Spearman -0.64 (p=4e-14, n=111); -0.57 controlling decision
@@ -140,25 +150,25 @@ plus a borderline decision flags elevated risk of covert influence.
 
 ## 6. Relation to prior and concurrent work
 
-1. Zaman & Srivastava, ACL 2026 (arXiv:2512.23032): hint-verbalization is a
+1. Zaman & Srivastava, ACL 2026 ([arXiv:2512.23032](https://arxiv.org/abs/2512.23032)): hint-verbalization is a
    flawed faithfulness label; non-verbalized hints causally mediate through
    the CoT (CMA); verbalization rises with sampling budget (faithful@k). We
    adopt their terminology; our +20-sentence coupling independently supports
    their incompleteness account on a reasoning distill; our MMLU
    max_tokens=2048 sits in their flagged tight-budget regime (limitation).
-2. Rationalization probes (arXiv:2603.17199): supervised activation probes
+2. Rationalization probes ([arXiv:2603.17199](https://arxiv.org/abs/2603.17199)): supervised activation probes
    detect motivated reasoning (AUC 65-82%, incl. pre-CoT). We mirror their
    two-position design; our pre-CoT 0.77 replicates the pre-generation effect
    on an untested model family; they test no unsupervised or attention-based
    detector - we fill that cell with a negative.
-3. Arcuschin et al. (arXiv:2602.10117): black-box unverbalized-bias discovery;
+3. Arcuschin et al. ([arXiv:2602.10117](https://arxiv.org/abs/2602.10117)): black-box unverbalized-bias discovery;
    population-level, ~766-2,493 query pairs (~$100) per concept, no
    single-response attribution. Our hiring result is the per-response,
    white-box complement.
-4. Thought Anchors (Bogdan et al., arXiv:2506.19143) and Thought Branches:
+4. Thought Anchors (Bogdan et al., [arXiv:2506.19143](https://arxiv.org/abs/2506.19143)) and Thought Branches:
    source of the receiver-head framework; our results caution against
    faithfulness applications of global receiver-head statistics.
-5. Karvonen & Marks (arXiv:2506.10922): setting, data, and models for
+5. Karvonen & Marks ([arXiv:2506.10922](https://arxiv.org/abs/2506.10922)): setting, data, and models for
    Section 5.
 
 ## 7. Limitations
@@ -186,6 +196,26 @@ plus a borderline decision flags elevated risk of covert influence.
    risk monitor (per-response, cheap)?
 6. Latent reasoning models (Uzay's suggestion): do these questions transfer
    when there is no verbalized CoT at all?
+7. THE BRIDGE EXPERIMENT (full follow-up design): CoT hiring on an open
+   model. Generate step-by-step reasoning rollouts with Gemma-3-12B over the
+   Karvonen resumes (~100 resumes x 4 name variants x several rollouts, one
+   GPU session; extraction and analysis code in this repo run unchanged).
+   Two labels per rollout: (a) verbalizing vs silent - does the CoT mention
+   the name/demographics; (b) flipped vs not - did the name causally move
+   the decision (delta p across name variants; behavioral, judge-free).
+   Metrics, in order of priority: targeted attention to the name span and to
+   name-restating CoT sentences (primary - the only attention quantity with
+   demonstrated signal); sentence-level vert scores with kurtosis/entropy as
+   secondary metrics ONLY under length controls (within-resume comparisons,
+   matched pairs, residualization); supervised probes from the same forward
+   passes as the ceiling. Key new question: does the inverted
+   attention-avoidance pattern persist during reasoning, or does CoT change
+   where attention goes? Design fixes inherited: cue (name) mid-prompt,
+   within-pair comparisons, generous token budget, problem-level statistics.
+8. Where does attention reallocate when the model avoids the sensitive
+   attribute - diffuse, or re-concentrated on qualification sentences
+   (plausible-deniability attention)? Requires saving full decision-token
+   attention rows (5-line change to hiring_attention.py).
 
 ## Acknowledgements
 
