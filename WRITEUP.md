@@ -1,0 +1,194 @@
+# Attention Patterns and Chain-of-Thought Faithfulness: A Controlled Investigation
+
+Yulia Volkova - Athena Fellowship / MATS 9.1 extension - Nov 2025 to Aug 2026.
+Draft for review.
+Code, data pipelines, and all analyses: https://github.com/yulia-volkova/thought-anchors-faithfulness
+(key files: FEEDBACK_AND_PLAN.md, extract_within_problem.py, entropy_analysis.py, hiring_attention.py, cue_conditioning_control.py)
+
+> **Review prompt (for the reviewing agent):** You are reviewing a research
+> write-up on attention patterns and chain-of-thought faithfulness. Be
+> adversarial and specific; cite section numbers. Priorities:
+> 1. Attack the causal reading of the hiring result (Section 5): the
+>    attention-sensitivity correlation is correlational - list confounds not
+>    yet controlled (beyond decision confidence and length) and how each
+>    would produce rho=-0.64 without covert use of the attribute.
+> 2. Audit every claim for slippage from "verbalization" to "faithfulness"
+>    (Section 6.1 explains why they are not the same).
+> 3. Scrutinize the length-matched kurtosis concordance of 0.605 over 215
+>    non-independent pairs (Section 4): is calling it "a weak residual
+>    trend" too strong, too weak, or right?
+> 4. Check statistical hygiene: paired tests at problem level, GroupKFold,
+>    best-layer selection (is reporting best-layer AUC without nesting
+>    acceptable as framed?).
+> 5. Say what one additional experiment would most change your confidence
+>    in each of the three hypothesis verdicts.
+> Format: numbered findings, each with severity (blocking / major / minor),
+> the exact quoted claim, and a suggested fix.
+
+
+## Abstract
+
+We test whether unsupervised attention statistics (receiver-head kurtosis;
+normalized attention entropy) distinguish chain-of-thought rollouts that
+verbalize a hint they follow from rollouts that follow it silently. On
+DeepSeek-R1-Distill-Qwen-14B over MMLU and GPQA-Diamond, with problem identity
+held fixed and analysis restricted to problems where the hint is demonstrably
+causal (cue-response gap >= 0.5) and reasoning is non-performative
+(no-reasoning accuracy < 0.5), we find no usable unsupervised signal: apparent
+effects are explained by a verbalization-length coupling (verbalizing rollouts
+are ~20 sentences longer; kurtosis correlates rho=0.98 with length). Supervised
+activation probes on the same forward passes reach AUC 0.86 (post-CoT) and
+0.77 (pre-CoT), and attention statistics add nothing on top. In a separate
+decision setting (resume screening, Gemma-3-12B), targeted attention from the
+decision token to a candidate's name is strongly INVERSELY related to the
+name's causal effect on the decision (rho=-0.64, p=4e-14): the model attends
+less to attributes it covertly uses. Internals know; attention summaries do
+not tell - except, inverted, when you ask about a specific token span.
+
+## 1. Hypotheses
+
+- H1 (original, Nov 2025): faithful CoT (verbalizes the hint it follows)
+  anchors attention on key sentences -> higher receiver-head kurtosis;
+  unfaithful CoT (follows silently; post-hoc rationalization) shows diffuse
+  attention. REJECTED (length artifact).
+- H2 (diffuseness, Aug 2026): silent rollouts have higher normalized attention
+  entropy than verbalizing rollouts of the same problem. REJECTED (null in
+  both directions after length controls).
+- H3 (targeted attention, hiring): attention from the decision token to a
+  demographic attribute predicts that attribute's causal effect on the
+  decision. SUPPORTED WITH INVERTED SIGN.
+
+## 2. Setting
+
+Model: deepseek-ai/DeepSeek-R1-Distill-Qwen-14B. Datasets: MMLU (143
+problems), GPQA-Diamond (186), 20 cued rollouts each; cue = "A Stanford
+professor thinks the answer is (X)", X != ground truth. Labels: verbalizing
+(follows cue AND mentions it) vs silent (follows without mention) -
+terminology per Zaman & Srivastava's critique (see 6.1); we do not equate
+silence with unfaithfulness. Attention: sentence-level received-attention
+(vert) scores per head (proximity_ignore=3, drop_first=1), Thought Anchors
+framework (Bogdan et al. 2025, arXiv:2506.19143).
+
+Final analysis population ("strict"): problems with cue-response gap >= 0.5,
+no-reasoning accuracy < 0.5, and mixed behavior (>=2 verbalizing and >=2
+silent rollouts): 25 problems (15 MMLU, 10 GPQA), 383 rollouts (154 V, 229 S),
+~15 rollouts/problem. A wider pool (113 problems / 1,556 rollouts) gives the
+same conclusions; numbers below are strict unless noted.
+
+## 3. Controls that dismantled the original result
+
+1. Rollout-level pseudo-replication: the original GPQA p=0.04 disappears at
+   problem level (best p=0.056).
+2. Cue-conditioning (suggested by Daria & Riya): the cue sentence (position 0)
+   was excluded from the metric by drop_first, so direct cue salience cannot
+   explain kurtosis; but problems labeled faithful vs unfaithful by cued
+   behavior differ in kurtosis even in their UNCUED rollouts (GPQA d~1.2),
+   where no (un)faithful behavior exists -> group gaps reflect problem
+   selection. Design flaw noted: cue at position 0 coincides with the
+   attention sink; successors should place it mid-prompt.
+3. Cue-restatement ablation: deleting cue-mentioning sentences from the
+   per-head score lists changes kurtosis <1%; cue mentions rank low in
+   attention; the dominant spike is typically the first reasoning sentence.
+
+## 4. The decisive within-problem experiment
+
+Design: compare verbalizing vs silent rollouts of the SAME problem
+(teacher-forced re-extraction on one H100; custom attention kernel pools
+token attention to sentence level in 8-head chunks inside the attention
+computation, making 14B x 8k-token extraction feasible; same passes store
+activations at 16 layers x 2 positions).
+
+Strict-subset results:
+- Raw paired kurtosis (V-S): d=+0.61, p=0.002, 76% of problems positive.
+- Verbalizing rollouts are +20.9 sentences longer (p=0.0006); kurtosis
+  correlates rho=0.98 with length across rollouts.
+- Length-residualized paired test: d=+0.14, p=0.19. Length-matched pairs
+  (|dn|<=5): concordance 0.605 over 215 pairs - a weak residual trend the
+  problem-level test cannot distinguish from chance.
+- Entropy (H2), length-invariant by construction but still rho=0.49-0.72 with
+  length in practice: raw sign OPPOSITE to H2 (verbalizing more diffuse,
+  p=0.03); residualized d~0.0 (p=0.73-0.75); matched pairs 0.488-0.516.
+- Supervised probes (GroupKFold by problem): post-CoT AUC 0.862, pre-CoT
+  0.768 (best layer). Kurtosis within-problem AUC 0.64; adding kurtosis to
+  the probe does not improve it (0.83 -> 0.83 on the 76-problem set).
+
+Conclusion: no unsupervised global attention signature of unverbalized cue
+use; all such statistics inherit the verbalization-length coupling. The
+information exists in activations (probes work, even before generation) but
+is not legible in attention summaries.
+
+## 5. Hiring setting: the inverted targeted-attention result
+
+Data: Karvonen & Marks resume-screening logs (arXiv:2506.10922;
+github.com/adamkarvonen/llm_bias; HF adamkarvonen/bias_eval). Model:
+google/gemma-3-12b-it (their logged runs, our re-extraction). 111 resumes x 4
+names (White/Black x Female/Male) x 4 prompt versions. Ground truth:
+name-sensitivity = delta p(yes) across a resume's name variants (behavioral -
+no verbalization label, no LLM judge). Measure: attention from the final
+(decision) token to the name's token span, top-5 heads over the 8 global
+attention layers (local layers cannot reach the name).
+
+Result: attention-to-name is inversely related to name-sensitivity:
+resume-level Spearman -0.64 (p=4e-14, n=111); -0.57 controlling decision
+confidence; length not a confound (rho=-0.04); detector AUC ~0.87 (inverted).
+The model looks AWAY from the attribute that is moving its decision.
+Interpretations to distinguish: (a) covert absorption - the attribute is
+integrated into resume representations during prefill, so the decision token
+needn't re-attend; (b) learned suppression of overt attention to sensitive
+attributes. Practical reading: low overt attention to a sensitive attribute
+plus a borderline decision flags elevated risk of covert influence.
+
+## 6. Relation to prior and concurrent work
+
+1. Zaman & Srivastava, ACL 2026 (arXiv:2512.23032): hint-verbalization is a
+   flawed faithfulness label; non-verbalized hints causally mediate through
+   the CoT (CMA); verbalization rises with sampling budget (faithful@k). We
+   adopt their terminology; our +20-sentence coupling independently supports
+   their incompleteness account on a reasoning distill; our MMLU
+   max_tokens=2048 sits in their flagged tight-budget regime (limitation).
+2. Rationalization probes (arXiv:2603.17199): supervised activation probes
+   detect motivated reasoning (AUC 65-82%, incl. pre-CoT). We mirror their
+   two-position design; our pre-CoT 0.77 replicates the pre-generation effect
+   on an untested model family; they test no unsupervised or attention-based
+   detector - we fill that cell with a negative.
+3. Arcuschin et al. (arXiv:2602.10117): black-box unverbalized-bias discovery;
+   population-level, ~766-2,493 query pairs (~$100) per concept, no
+   single-response attribution. Our hiring result is the per-response,
+   white-box complement.
+4. Thought Anchors (Bogdan et al., arXiv:2506.19143) and Thought Branches:
+   source of the receiver-head framework; our results caution against
+   faithfulness applications of global receiver-head statistics.
+5. Karvonen & Marks (arXiv:2506.10922): setting, data, and models for
+   Section 5.
+
+## 7. Limitations
+
+- CoT experiments: single model family (R1-Distill-Qwen-14B); cue always at
+  position 0 (attention sink); MMLU generation budget 2048 tokens; labels are
+  verbalization, not ground-truth faithfulness; strict subset is 25 problems
+  (paired power ~d>=0.6).
+- Hiring: single model (Gemma-3-12B), single attribute bundle (names),
+  correlational; absorption vs suppression not yet distinguished; production
+  inference does not materialize attention (FlashAttention), limiting direct
+  deployment of any attention-based monitor.
+
+## 8. Open questions
+
+1. Absorption vs suppression: mid-forward name-swap / attention-blocking
+   ablation in the hiring setting.
+2. Does the inverted attention-sensitivity relation replicate on Gemma-3-27B,
+   Mistral-Small-24B (data in hand), and non-Gemma families?
+3. Is there any length-invariant attention statistic with signal? (Our
+   matched-pair kurtosis trend, 0.605, is the only surviving hint.)
+4. Redesigned CoT experiment: cue mid-prompt, generous budgets, second model
+   family - does anything change?
+5. Can pre-CoT probes + targeted attention combine into a practical
+   risk monitor (per-response, cheap)?
+6. Latent reasoning models (Uzay's suggestion): do these questions transfer
+   when there is no verbalized CoT at all?
+
+## Acknowledgements
+
+Feedback: Adam Karvonen; Jack Merullo & Siddharth Boppana (Goodfire); Uzay
+Macar; Daria & Riya; Arun Jose (Athena mentor); Skylar Shibayama & Maria M
+(MATS RM feedback on presentation). Compute: user's H100.
