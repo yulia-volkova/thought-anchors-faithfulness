@@ -604,6 +604,41 @@
             </section>
         </main>
 
+        <!-- Update: cue-conditioning controls (Aug 2026) -->
+        <section class="methodology-collapsible" id="cue-controls">
+            <h2>Update (Aug 2026): Cue-Conditioning Controls</h2>
+            <p>
+                Following feedback (thanks to Daria and Riya), I checked whether the kurtosis signal could be
+                explained by attention simply targeting the cue rather than by reasoning faithfulness.
+                Verdict: <strong>the cue is not the source of the kurtosis signal, but the faithful vs unfaithful
+                gap weakens substantially under problem-level controls.</strong>
+            </p>
+            <p>
+                <strong>(1) The cue sentence itself was never in the metric.</strong> The cue always appears as
+                the first prompt sentence, which the pipeline's <code>drop_first</code> setting excludes from
+                vert scores. Direct cue salience therefore cannot explain any kurtosis result. (Caveat for future
+                designs: cue position 0 coincides with the attention sink, so the cue should be placed mid-prompt.)
+            </p>
+            <p>
+                <strong>(2) Cue restatements in the CoT are not the anchors.</strong> In faithful rollouts, the
+                sentences that verbalize the cue are usually not the top-attended sentences (median attention rank
+                far from the top; top-3 for only a minority of heads), and removing them from the attention
+                distribution changes kurtosis by under 1% (points on the diagonal below = no change).
+                The dominant spike is typically the first reasoning sentence, not the cue mention.
+            </p>
+            <img src="images/cue_control_profiles.png" alt="Vert-score profiles for faithful rollouts with cue mentions highlighted" style="max-width: 100%; border-radius: 8px; margin: 0.5rem 0;">
+            <img src="images/cue_control_scatter.png" alt="Kurtosis before vs after removing cue-mention sentences" style="max-width: 420px; width: 100%; border-radius: 8px; margin: 0.5rem 0;">
+            <p>
+                <strong>(3) However, the headline gap does not survive problem-level controls.</strong>
+                Re-running the statistics with the problem (not the rollout) as the unit of analysis, nothing is
+                significant (best p = 0.056). On GPQA the faithful vs unfaithful kurtosis gap also appears in
+                <em>uncued</em> rollouts of the same problems (d ≈ 1.2), and in within-problem
+                faithful/unfaithful rollout pairs the mean kurtosis is essentially equal (24.3 vs 24.9) —
+                so the group-level gap largely reflects which problems were selected, not faithful behavior.
+                A properly powered follow-up needs within-problem comparisons on matched problems.
+            </p>
+        </section>
+
         <!-- Future Directions -->
         <section class="future-directions-section">
             <h2>Future Directions</h2>
