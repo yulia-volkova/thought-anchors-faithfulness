@@ -28,3 +28,13 @@ build/
 
 # Generated data
 analysis_results.json
+
+# Call transcripts and private feedback
+feedback/
+
+
+# Large extracted data (reproducible via extract_within_problem.py)
+extracted_within_problem/
+extracted_v2/
+hiring_full/
+data/mmlu_cue_long.csv
