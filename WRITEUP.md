@@ -34,30 +34,24 @@ normalized attention entropy) distinguish chain-of-thought rollouts that
 verbalize a hint they follow from rollouts that follow it silently. On
 DeepSeek-R1-Distill-Qwen-14B over MMLU and GPQA-Diamond, with problem identity
 held fixed and analysis restricted to problems where the hint is demonstrably
-causal (cue-response gap >= 0.5) and reasoning is non-performative
-(no-reasoning accuracy < 0.5), we find no usable unsupervised signal: apparent
+causal (cue-response gap >= 0.5) and direct-answer accuracy is below 0.5, we find no usable unsupervised signal: apparent
 effects are explained by a verbalization-length coupling (verbalizing rollouts
-are ~20 sentences longer; kurtosis correlates rho=0.98 with length). Supervised
-activation probes on the same forward passes reach AUC 0.86 (post-CoT) and
-0.77 (pre-CoT), and attention statistics add nothing on top. In a separate
+are ~20 sentences longer; kurtosis correlates rho=0.98 with length). Supervised activation probes on the same forward passes reach AUC 0.86 post-CoT (best-layer, exploratory; pre-CoT probes retracted pending re-extraction), and attention statistics add nothing on top. In a separate
 decision setting (resume screening, Gemma-3-12B), targeted attention from the
 decision token to a candidate's name is strongly INVERSELY related to the
-name's causal effect on the decision (rho=-0.64, p=4e-14): the model attends
-less to attributes it covertly uses. Internals know; attention summaries do
-not tell - except, inverted, when you ask about a specific token span.
+name's causal effect on the decision (rho=-0.64, p=4e-14): lower final-query attention to candidate names is strongly associated with larger counterfactual name effects at the resume level. This association is exploratory: it does not yet identify covert demographic use, distinguish absorption from attention competition, or establish a per-response detector.
 
 ## 1. Hypotheses
 
 - H1 (original, Nov 2025): faithful CoT (verbalizes the hint it follows)
   anchors attention on key sentences -> higher receiver-head kurtosis;
   unfaithful CoT (follows silently; post-hoc rationalization) shows diffuse
-  attention. REJECTED (length artifact).
+  attention. NOT SUPPORTED after length controls; no consistent cross-dataset residual effect (MMLU and GPQA point in opposite directions; see Sec. 4).
 - H2 (diffuseness, Aug 2026): silent rollouts have higher normalized attention
-  entropy than verbalizing rollouts of the same problem. REJECTED (null in
-  both directions after length controls).
+  entropy than verbalizing rollouts of the same problem. NOT SUPPORTED; no consistent residual or matched-pair difference in this setting (no equivalence bound established yet - powered rerun in progress).
 - H3 (targeted attention, hiring): attention from the decision token to a
   demographic attribute predicts that attribute's causal effect on the
-  decision. SUPPORTED WITH INVERTED SIGN.
+  decision. STRONG INVERSE EXPLORATORY ASSOCIATION (sign opposite to prediction); mechanism and predictive generality untested.
 
 ## 2. Setting
 
@@ -103,20 +97,15 @@ Strict-subset results:
 - Raw paired kurtosis (V-S): d=+0.61, p=0.002, 76% of problems positive.
 - Verbalizing rollouts are +20.9 sentences longer (p=0.0006); kurtosis
   correlates rho=0.98 with length across rollouts.
-- Length-residualized paired test: d=+0.14, p=0.19. Length-matched pairs
-  (|dn|<=5): concordance 0.605 over 215 pairs - a weak residual trend the
-  problem-level test cannot distinguish from chance.
-- Entropy (H2), length-invariant by construction but still rho=0.49-0.72 with
+- Length-residualized paired test, pooled: d=+0.14, p=0.19; PER DATASET the residual effects point in OPPOSITE directions (MMLU d=+0.86, p=0.002; GPQA d=-0.52, p=0.16) - the pooled null partly reflects cancellation, so the defensible claim is no CONSISTENT cross-dataset residual effect, not that length explains everything. Length-matched pairs (|dn|<=5), exploratory: pair-weighted concordance 0.605 over 215 dependent pairs from 21 problems; problem-weighted 0.551; problem-level Wilcoxon p=0.23 - not distinguishable from chance.
+- Entropy (H2), per-query normalized (the rollout-level aggregate is NOT length-invariant) - rho=0.49-0.72 with
   length in practice: raw sign OPPOSITE to H2 (verbalizing more diffuse,
   p=0.03); residualized d~0.0 (p=0.73-0.75); matched pairs 0.488-0.516.
-- Supervised probes (GroupKFold by problem): post-CoT AUC 0.862, pre-CoT
-  0.768 (best layer). Kurtosis within-problem AUC 0.64; adding kurtosis to
+- Supervised probes (GroupKFold by problem; best-layer values are EXPLORATORY, not nested): post-CoT AUC 0.862. Pre-CoT results are RETRACTED pending re-extraction: the original boundary-token derivation was contaminated by the continuation (joint tokenization; fixed in extract_within_problem.py with a same-prompt equality assertion). Kurtosis within-problem AUC 0.64; adding kurtosis to
   the probe does not improve it (0.83 -> 0.83 on the 76-problem set).
 
 Conclusion: no unsupervised global attention signature of unverbalized cue
-use; all such statistics inherit the verbalization-length coupling. The
-information exists in activations (probes work, even before generation) but
-is not legible in attention summaries.
+use; all such statistics inherit the verbalization-length coupling. Post-generation activations predict the keyword-detected cue-mention label (note: post-CoT activations have access to the text that defines the label); pre-generation claims await the repaired extraction.
 
 ## 5. Hiring setting: the inverted targeted-attention result
 
@@ -124,8 +113,7 @@ Data: Karvonen & Marks resume-screening logs ([arXiv:2506.10922](https://arxiv.o
 [github.com/adamkarvonen/llm_bias](https://github.com/adamkarvonen/llm_bias); HF adamkarvonen/bias_eval). Model:
 google/gemma-3-12b-it (their logged runs, our re-extraction). 111 resumes x 4
 names (White/Black x Female/Male) x 4 prompt versions. Ground truth:
-name-sensitivity = delta p(yes) across a resume's name variants (behavioral -
-no verbalization label, no LLM judge). Measure: attention from the final
+name-sensitivity = the range of p(yes) across the 4 name variants computed WITHIN each prompt version, averaged over versions (isolates the name intervention from prompt-version effects; see hiring_analysis.py). Measure: attention from the final
 (decision) token to the name's token span, top-5 heads over the 8 global
 attention layers (local layers cannot reach the name).
 
@@ -139,9 +127,7 @@ setting look clean while decisions are biased, which is what makes the
 setting canonical for unverbalized influence.
 
 Result: attention-to-name is inversely related to name-sensitivity:
-resume-level Spearman -0.64 (p=4e-14, n=111); -0.57 controlling decision
-confidence; length not a confound (rho=-0.04); detector AUC ~0.87 (inverted).
-The model looks AWAY from the attribute that is moving its decision.
+resume-level Spearman -0.630 (p=1.2e-13, n=111); -0.562 controlling mean p(yes); length not a confound (rho=-0.04). Exploratory resume-level AUC 0.859 for flagging name-sensitive resumes (pre-specified threshold: mean within-version range > 0.05; 36 sensitive / 75 not). Low final-query attention to the name is associated with larger counterfactual name effects at the resume level.
 Interpretations to distinguish: (a) covert absorption - the attribute is
 integrated into resume representations during prefill, so the decision token
 needn't re-attend; (b) learned suppression of overt attention to sensitive
@@ -153,7 +139,7 @@ plus a borderline decision flags elevated risk of covert influence.
 1. Zaman & Srivastava, ACL 2026 ([arXiv:2512.23032](https://arxiv.org/abs/2512.23032)): hint-verbalization is a
    flawed faithfulness label; non-verbalized hints causally mediate through
    the CoT (CMA); verbalization rises with sampling budget (faithful@k). We
-   adopt their terminology; our +20-sentence coupling independently supports
+   adopt their terminology; our +20-sentence coupling is consistent with
    their incompleteness account on a reasoning distill; our MMLU
    max_tokens=2048 sits in their flagged tight-budget regime (limitation).
 2. Rationalization probes ([arXiv:2603.17199](https://arxiv.org/abs/2603.17199)): supervised activation probes
@@ -222,3 +208,15 @@ plus a borderline decision flags elevated risk of covert influence.
 Feedback: Adam Karvonen; Jack Merullo & Siddharth Boppana (Goodfire); Uzay
 Macar; Daria & Riya; Arun Jose (Athena mentor); Skylar Shibayama & Maria M
 (MATS RM feedback on presentation). Compute: user's H100.
+
+
+## Revision note (2026-08-14)
+
+This draft incorporates an external adversarial review: corrected hiring
+estimand (within-version name contrasts), associational language for the
+hiring result, pre-CoT probe retraction pending repaired extraction,
+clustered matched-pair reporting, per-dataset residual effects, exploratory
+labels on best-layer AUCs, and downgraded hypothesis verdicts. In progress:
+a pre-registered powered rerun (screening ~1,500 fresh problems; criteria
+gap>=0.5, nr accuracy<0.5, reasoning gain>=0.2, >=3V/>=3S; Wilcoxon
+alpha=0.01 with d=0.3 equivalence bound) and the pre-CoT re-extraction.

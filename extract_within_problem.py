@@ -50,35 +50,40 @@ def build_token_ranges(full_text, prompt_char_len, tokenizer):
     prompt_sentences = split_prompt_into_chunks(prompt_text)
     gen_sentences = split_solution_into_chunks(gen_text)
 
-    char_ranges = []
-    for s, e in get_chunk_ranges(prompt_text, prompt_sentences):
-        char_ranges.append((s, e))
-    for s, e in get_chunk_ranges(gen_text, gen_sentences):
-        char_ranges.append((s + prompt_char_len, e + prompt_char_len))
+    # Review F3 fix: tokenize prompt and generation SEPARATELY so the prompt's
+    # token ids (and hence the pre-CoT boundary state) are identical across
+    # continuations of the same prompt. Joint tokenization let the first
+    # continuation characters alter the boundary token.
+    enc_p = tokenizer(prompt_text, return_offsets_mapping=True,
+                      return_tensors="pt", add_special_tokens=True)
+    enc_g = tokenizer(gen_text, return_offsets_mapping=True,
+                      return_tensors="pt", add_special_tokens=False)
+    n_prompt_toks = enc_p["input_ids"].shape[1]
 
-    enc = tokenizer(full_text, return_offsets_mapping=True, return_tensors="pt",
-                    add_special_tokens=True)
-    offsets = enc["offset_mapping"][0].tolist()
+    import torch as _t
+    full_input_ids = _t.cat([enc_p["input_ids"], enc_g["input_ids"]], dim=1)
 
-    token_ranges = []
-    for cs, ce in char_ranges:
-        toks = [i for i, (ts, te) in enumerate(offsets) if ts < ce and te > cs and te > ts]
-        if not toks:
-            token_ranges.append(None)
-        else:
-            token_ranges.append((min(toks), max(toks) + 1))
+    def ranges_for(offsets, char_ranges, shift):
+        out = []
+        for cs, ce in char_ranges:
+            toks = [i for i, (ts, te) in enumerate(offsets)
+                    if ts < ce and te > cs and te > ts]
+            out.append((min(toks) + shift, max(toks) + 1 + shift) if toks else None)
+        return out
 
-    # last token whose end <= prompt boundary
-    prompt_last_tok = max(
-        (i for i, (ts, te) in enumerate(offsets) if te <= prompt_char_len and te > ts),
-        default=0)
+    token_ranges = ranges_for(enc_p["offset_mapping"][0].tolist(),
+                              get_chunk_ranges(prompt_text, prompt_sentences), 0)
+    token_ranges += ranges_for(enc_g["offset_mapping"][0].tolist(),
+                               get_chunk_ranges(gen_text, gen_sentences),
+                               n_prompt_toks)
+    prompt_last_tok = n_prompt_toks - 1
 
     sentences = prompt_sentences + gen_sentences
     keep = [i for i, tr in enumerate(token_ranges) if tr is not None]
     sentences = [sentences[i] for i in keep]
     token_ranges = [token_ranges[i] for i in keep]
     prompt_len = sum(1 for i in keep if i < len(prompt_sentences))
-    return enc["input_ids"], sentences, token_ranges, prompt_len, prompt_last_tok
+    return full_input_ids, sentences, token_ranges, prompt_len, prompt_last_tok
 
 
 def make_pool_matrix(token_ranges, seq_len, device, dtype):
