@@ -203,6 +203,19 @@ plus a borderline decision flags elevated risk of covert influence.
    (plausible-deniability attention)? Requires saving full decision-token
    attention rows (5-line change to hiring_attention.py).
 
+### Pre-registered addition (2026-08-14): attention-blocking causal test
+
+After the powered rerun's eligibility gate, on eligible problems: generate
+cued rollouts with attention to the cue-sentence tokens blocked (weights
+zeroed, rows renormalized, all layers, all positions after the cue) and
+compare cue-follow rates across cued-normal / cued-blocked / uncued.
+Interpretation fixed in advance: blocked ~ uncued floor -> the cue's influence
+is mediated by direct attention to it (causal validation of attention-based
+monitoring); blocked ~ cued-normal -> influence is absorbed into early-layer
+representations and travels without re-attending (the absorption account,
+converging with the hiring result). This is the causal leg suggested by
+Goodfire in Feb 2026 and previously untested.
+
 ## Acknowledgements
 
 Feedback: Adam Karvonen; Jack Merullo & Siddharth Boppana (Goodfire); Uzay
