@@ -112,7 +112,9 @@ use; all such statistics inherit the verbalization-length coupling. Post-generat
 Data: Karvonen & Marks resume-screening logs ([arXiv:2506.10922](https://arxiv.org/abs/2506.10922);
 [github.com/adamkarvonen/llm_bias](https://github.com/adamkarvonen/llm_bias); HF adamkarvonen/bias_eval). Model:
 google/gemma-3-12b-it (their logged runs, our re-extraction). 111 resumes x 4
-names (White/Black x Female/Male) x 4 prompt versions. Ground truth:
+name variants (White/Black x Female/Male; each variant swaps a name+pronouns+email
+BUNDLE, so race, gender, and lexical name properties are not separable) x 4
+prompt versions. Ground truth:
 name-sensitivity = the range of p(yes) across the 4 name variants computed WITHIN each prompt version, averaged over versions (isolates the name intervention from prompt-version effects; see hiring_analysis.py). Measure: attention from the final
 (decision) token to the name's token span, top-5 heads over the 8 global
 attention layers (local layers cannot reach the name).
@@ -186,7 +188,12 @@ plus a borderline decision flags elevated risk of covert influence.
    model. Generate step-by-step reasoning rollouts with Gemma-3-12B over the
    Karvonen resumes (~100 resumes x 4 name variants x several rollouts, one
    GPU session; extraction and analysis code in this repo run unchanged).
-   Two labels per rollout: (a) verbalizing vs silent - does the CoT mention
+   Eligibility criterion specific to this setting (not the MCQ criteria):
+   resumes where the name-bundle effect SURVIVES reasoning (delta p under CoT
+   vs direct, per resume); Karvonen & Marks report bias shrinks but persists
+   under CoT and is never verbalized. Their context manipulations (company
+   identity, anti-bias statements) can serve as a bias-strength dial to raise
+   the yield of sensitive resumes. Two labels per rollout: (a) verbalizing vs silent - does the CoT mention
    the name/demographics; (b) flipped vs not - did the name causally move
    the decision (delta p across name variants; behavioral, judge-free).
    Metrics, in order of priority: targeted attention to the name span and to
