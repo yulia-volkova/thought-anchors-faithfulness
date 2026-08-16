@@ -35,8 +35,12 @@
             <p class="tldr-intro">
                 I analyze consistently faithful &amp; unfaithful rollouts for MMLU &amp; GPQA-diamond datasets using the
                 <a href="https://arxiv.org/abs/2506.19143" target="_blank">Thought Anchors</a> framework.
-                Key findings: (1) <strong>Faithful CoT shows more focused attention patterns</strong> (higher kurtosis <span class="info-icon" id="kurtosis-info" data-tooltip="kurtosis-tooltip">ℹ️</span>) than unfaithful CoT. (2) Reasoning-only receiver heads <span class="info-icon" id="receiver-heads-tldr-info" data-tooltip="receiver-heads-tldr-tooltip">ℹ️</span> differ between groups, but this is <strong>not statistically significant</strong>. (3) <strong>Unfaithful CoT shows higher cue-following rate</strong> than faithful CoT. (4) There exist <strong>universal receiver heads</strong> that appear across all conditions.
-            </p>
+                Key findings (updated Aug 2026 after controls and a pre-registered rerun):
+                (1) The original kurtosis result does not survive controls: attention-concentration measures mainly track rollout length, and verbalizing rollouts are ~20 sentences longer - with length controlled, no attention statistic separates silent from verbalizing cue-following (replicated on MMLU, GPQA and MMLU-Pro).
+                (2) Causal result: blocking the model's attention to the cue sentence removes its influence on 30/36 problems - cue influence travels through attention. On 6 problems influence survives blocking (absorbed during prompt reading).
+                (3) Cue influence anti-correlates with reasoning ability (rho = -0.37 across 1,493 problems).
+                (4) Supervised activation probes detect silent cue-following (AUC ~0.86); no label-free attention measure does.
+                See the updated findings below and the full write-up in the repository.</p>
             <p class="tldr-link">
                 <a href="#key-findings">View detailed findings below ↓</a>
             </p>
@@ -636,6 +640,18 @@
                 faithful/unfaithful rollout pairs the mean kurtosis is essentially equal (24.3 vs 24.9) —
                 so the group-level gap largely reflects which problems were selected, not faithful behavior.
                 A properly powered follow-up needs within-problem comparisons on matched problems.
+            </p>
+            <p>
+                <strong>Final update (Aug 2026): the powered rerun and causal test.</strong>
+                A pre-registered rerun screened 1,493 fresh problems (GPQA main+extended, MMLU-Pro; 89,580
+                generations) and analyzed the 36 problems where the cue was demonstrably causal, ~26 rollouts
+                each. Result: no attention statistic (kurtosis or entropy) separates silent from verbalizing
+                rollouts once length is controlled - effects near zero in every stratum, including with
+                equal-length matched pairs. A causal attention-blocking experiment on the same problems showed
+                that cue influence flows through attention to the cue (blocking collapses cue-following to the
+                no-cue floor on 30/36 problems), with a minority of problems where influence survives blocking
+                (absorption during prompt reading) - concentrated in the problems with the most silent following.
+                Full statistics, code and data: <a href="https://github.com/yulia-volkova/thought-anchors-faithfulness" target="_blank">the repository</a>.
             </p>
         </section>
 
