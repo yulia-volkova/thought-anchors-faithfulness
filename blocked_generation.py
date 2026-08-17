@@ -32,7 +32,7 @@ def blocked_eager(module, query, key, value, attention_mask, scaling=None,
         # transformers passes None to custom-registered kernels; without an
         # explicit causal mask the forward is bidirectional
         Tq, Tk = scores.shape[-2], scores.shape[-1]
-        cm = torch.full((Tq, Tk), torch.finfo(torch.float32).min,
+        cm = torch.full((Tq, Tk), torch.finfo(scores.dtype).min,
                         device=scores.device, dtype=scores.dtype)
         scores = scores + torch.triu(cm, diagonal=Tk - Tq + 1)[None, None]
     ce = CUE_END["t"]
