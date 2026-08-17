@@ -199,7 +199,9 @@ hiring_cot_analysis.py). Findings:
    max_tokens=2048 sits in their flagged tight-budget regime (limitation).
 2. Rationalization probes ([arXiv:2603.17199](https://arxiv.org/abs/2603.17199)): supervised activation probes
    detect motivated reasoning (AUC 65-82%, incl. pre-CoT). We mirror their
-   two-position design; our pre-CoT 0.77 replicates the pre-generation effect
+   two-position design; our pre-CoT number is retracted pending re-extraction
+   (boundary-token bug), so we do not currently claim a replication of the
+   pre-generation effect
    on an untested model family; they test no unsupervised or attention-based
    detector - we fill that cell with a negative.
 3. Arcuschin et al. ([arXiv:2602.10117](https://arxiv.org/abs/2602.10117)): black-box unverbalized-bias discovery;
