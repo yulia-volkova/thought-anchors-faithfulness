@@ -178,18 +178,29 @@ def pooled_eager_attention(module, query, key, value, attention_mask,
     return attn_output, None
 
 
-def vert_scores_from_sent_mats(sent_mats, n_layers, n_heads):
-    """[n_layers, n_heads, S] raw vert scores (mirrors get_attn_vert_scores,
-    rank_normalize=False)."""
+def vert_scores_from_sent_mats(sent_mats, n_layers, n_heads,
+                               proximity_ignore=PROXIMITY_IGNORE,
+                               drop_first=DROP_FIRST, rank_normalize=False):
+    """[n_layers, n_heads, S] vert scores (mirrors get_attn_vert_scores).
+
+    The paper's analysis code uses proximity_ignore=20, drop_first=10 and a
+    rank_normalize control; our earlier adaptation used 3/1 raw, which keeps
+    the reasoning-start spike inside the metric. Extraction now saves both
+    parameterizations plus a rank-normalized variant.
+    """
     S = next(iter(sent_mats.values())).shape[-1]
     verts = np.full((n_layers, n_heads, S), np.nan, dtype=np.float32)
     for li, sent in sent_mats.items():
         m = torch.tril(sent).numpy()  # [H, S, S]
+        if rank_normalize:
+            order = m.argsort(axis=-1).argsort(axis=-1).astype(np.float32)
+            m = np.where(m > 0, order, 0.0)
         for i in range(S):
-            rows = m[:, i + PROXIMITY_IGNORE:, i]
+            rows = m[:, i + proximity_ignore:, i]
             verts[li, :, i] = rows.mean(axis=1) if rows.shape[1] > 0 else np.nan
-    verts[:, :, :DROP_FIRST] = np.nan
-    verts[:, :, -DROP_FIRST:] = np.nan
+    if drop_first > 0:
+        verts[:, :, :drop_first] = np.nan
+        verts[:, :, -drop_first:] = np.nan
     return verts
 
 
@@ -286,6 +297,11 @@ def main():
 
                 verts = vert_scores_from_sent_mats(
                     COLLECTOR.sent_mats, n_layers, n_heads)
+                verts_paper = vert_scores_from_sent_mats(
+                    COLLECTOR.sent_mats, n_layers, n_heads,
+                    proximity_ignore=20, drop_first=10)
+                verts_rank = vert_scores_from_sent_mats(
+                    COLLECTOR.sent_mats, n_layers, n_heads, rank_normalize=True)
                 acts = np.stack([act_store[li].numpy() for li in act_layers])
                 act_traj = np.stack([act_store[(li, "traj")].numpy()
                                      for li in act_layers])  # [16, S, hidden] fp16
@@ -297,6 +313,8 @@ def main():
                 np.savez_compressed(
                     out_path,
                     verts=verts,
+                    verts_paper=verts_paper.astype(np.float16),
+                    verts_rank=verts_rank.astype(np.float16),
                     ents=ents,
                     acts=acts,
                     act_traj=act_traj,
