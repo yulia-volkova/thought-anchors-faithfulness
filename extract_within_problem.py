@@ -265,10 +265,14 @@ def main():
 
                 handles = []
 
+                sent_ends = [e - 1 for (s, e) in token_ranges]
+
                 def act_hook(li):
                     def fn(module, args_, output):
                         h = output[0] if isinstance(output, tuple) else output
                         act_store[li] = h[0, [prompt_last_tok, -1], :].float().cpu()
+                        # per-sentence-boundary states for trajectory probes
+                        act_store[(li, "traj")] = h[0, sent_ends, :].half().cpu()
                     return fn
                 handles += [
                     model.model.layers[li].register_forward_hook(act_hook(li))
@@ -283,6 +287,8 @@ def main():
                 verts = vert_scores_from_sent_mats(
                     COLLECTOR.sent_mats, n_layers, n_heads)
                 acts = np.stack([act_store[li].numpy() for li in act_layers])
+                act_traj = np.stack([act_store[(li, "traj")].numpy()
+                                     for li in act_layers])  # [16, S, hidden] fp16
 
                 ents = np.stack([
                     COLLECTOR.ent_mats[li].numpy()
@@ -293,6 +299,7 @@ def main():
                     verts=verts,
                     ents=ents,
                     acts=acts,
+                    act_traj=act_traj,
                     act_layers=np.array(act_layers),
                     prompt_len=prompt_len,
                     n_sentences=len(sentences),

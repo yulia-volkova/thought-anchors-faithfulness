@@ -28,6 +28,13 @@ def blocked_eager(module, query, key, value, attention_mask, scaling=None,
     scores = torch.matmul(query, key_states.transpose(2, 3)) * scaling
     if attention_mask is not None:
         scores = scores + attention_mask[:, :, :, : key_states.shape[-2]]
+    else:
+        # transformers passes None to custom-registered kernels; without an
+        # explicit causal mask the forward is bidirectional
+        Tq, Tk = scores.shape[-2], scores.shape[-1]
+        cm = torch.full((Tq, Tk), torch.finfo(torch.float32).min,
+                        device=scores.device, dtype=scores.dtype)
+        scores = scores + torch.triu(cm, diagonal=Tk - Tq + 1)[None, None]
     ce = CUE_END["t"]
     if ce > 0 and key_states.shape[-2] > ce:
         # block attention TO cue tokens from all queries strictly after the cue
