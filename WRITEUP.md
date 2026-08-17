@@ -136,6 +136,59 @@ needn't re-attend; (b) learned suppression of overt attention to sensitive
 attributes. Practical reading: low overt attention to a sensitive attribute
 plus a borderline decision flags elevated risk of covert influence.
 
+### 5.1 Position profile: the deficit is decision-time only (2026-08-16)
+
+Measuring attention to the name span from every query position (per global
+layer, per head; hiring_attention2.py) and correlating with name-sensitivity
+at reading positions: early rho=-0.155 (n.s.), mid -0.038, late -0.006;
+decision position -0.562 (p<1e-4). The model reads the name normally; only
+the final decision position under-consults it. This rules out active
+"look-away"/suppression during reading and leaves (a) prefill absorption and
+(b) attention competition at the decision token (borderline decisions spread
+attention over qualifications) as live interpretations.
+
+### 5.2 College condition: inverse effect for an inferred demographic (2026-08-17)
+
+Their college-affiliation condition signals race indirectly (Howard
+University / Morehouse College vs Georgetown / Emory; v3 meta job
+description, 480 records = 111 usable groups x 4 college variants, 36
+records lack yes_probs). Same measurement with span = the college mention
+(hiring_attention3.py, SPAN_MODE=college): resume-level Spearman
+(attention-to-college, college-sensitivity) = -0.435 (p=1.8e-6, n=111);
+-0.347 controlling mean p(yes); exploratory AUC 0.660 (23 sensitive / 88
+not). Weaker than the name bundle but same direction and significant: the
+inverse relation does not require the literal name tokens; it holds when
+the demographic must be inferred from a credential. Direction note: in this
+condition HBCU variants receive higher mean p(yes) (0.444 vs 0.381).
+
+### 5.3 CoT generations on open weights (2026-08-17)
+
+Their CoT results exist only for closed API models. We generated new
+decisions with the authors' canonical CoT format ("Chain of thought:
+<1-2 sentences> / Answer: <Yes or No>"; yes_no_high_bar_cot.txt) on
+gemma-3-12b-it, 8 samples per record at temperature 0.7, for both the name
+(444 records) and college (480 records) conditions (hiring_cot_generate.py,
+hiring_cot_analysis.py). Findings:
+
+- Name bias survives reasoning, attenuated ~5x: within-resume carryover of
+  the direct-mode p(yes) shift into CoT-mode yes-rates has slope +0.179
+  (within-group Spearman +0.132, p=5e-3, n=444). Range comparison agrees:
+  direct bias range 0.122 vs CoT excess-over-sampling-noise 0.050.
+- College bias is largely eliminated by reasoning: CoT excess range +0.006,
+  carryover slope +0.015 (weak rank carryover +0.156, p=1e-3).
+- Verbalization is absent: 0 of 7,392 CoTs contain an explicit demographic
+  word (the only regex hits were "Six Sigma Black Belt" and "key man
+  insurance"); the candidate name is restated in 1.4% (names cond); the
+  college is mentioned in 0.44% of college-condition CoTs, and on
+  college-sensitive resumes 0.41%. String matching is an upper bound on
+  citing the attribute as a factor, which strengthens the zero.
+- Position vs admissibility: the demographic cue sits mid-prompt - the
+  configuration that made hint-following almost fully verbalized in the
+  GPQA mid-prompt experiment - yet following is completely silent here. So
+  verbalization tracks whether the cue is an admissible reason, not its
+  position; the mid-prompt "verbalization fix" does not transfer to
+  socially inadmissible cues.
+
 ## 6. Relation to prior and concurrent work
 
 1. Zaman & Srivastava, ACL 2026 ([arXiv:2512.23032](https://arxiv.org/abs/2512.23032)): hint-verbalization is a
@@ -165,10 +218,14 @@ plus a borderline decision flags elevated risk of covert influence.
   position 0 (attention sink); MMLU generation budget 2048 tokens; labels are
   verbalization, not ground-truth faithfulness; strict subset is 25 problems
   (paired power ~d>=0.6).
-- Hiring: single model (Gemma-3-12B), single attribute bundle (names),
-  correlational; absorption vs suppression not yet distinguished; production
-  inference does not materialize attention (FlashAttention), limiting direct
-  deployment of any attention-based monitor.
+- Hiring: single model (Gemma-3-12B); name-bundle and college conditions,
+  one prompt version each for the follow-ups (5.1-5.3); correlational;
+  reading-position profile rules out look-away but absorption vs
+  decision-time competition remains undistinguished; CoT decisions are
+  8 samples/record at temperature 0.7 (rates are coarse; handled via noise
+  floor and slope estimands); production inference does not materialize
+  attention (FlashAttention), limiting direct deployment of any
+  attention-based monitor.
 
 ## 8. Open questions
 
