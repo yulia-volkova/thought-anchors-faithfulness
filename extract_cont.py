@@ -1,6 +1,6 @@
 """Attention+activation extraction for the screening-2 union set.
 
-Reads extraction_manifest.parquet (ds, pi, ridx, label, prompt_cued, text) and
+Reads extraction_manifest_cont.parquet (ds, pi, ridx, label, prompt_cued, text) and
 reuses the fixed machinery from extract_within_problem (pooled attention kernel,
 separate prompt/generation tokenization, entropy, activations).
 """
@@ -21,7 +21,7 @@ ap.add_argument("--out-dir", default="extracted_s2")
 ap.add_argument("--limit", type=int, default=None)
 args = ap.parse_args()
 
-m = pd.read_parquet("extraction_manifest.parquet")
+m = pd.read_parquet("extraction_manifest_cont.parquet")
 if args.limit:
     m = m.head(args.limit)
 
@@ -47,13 +47,13 @@ for _, r in m.iterrows():
     input_ids, sentences, token_ranges, prompt_len, prompt_last_tok = \
         E.build_token_ranges(full_text, len(r.prompt_cued), tokenizer)
     T = input_ids.shape[1]
-    if T > 13000:
+    if T > 16800:
         print(f"skip {r.ds} {r.pi} r{r.ridx}: {T} tokens", flush=True)
         continue
     pool = E.make_pool_matrix(token_ranges, T, device, torch.float32)
     E.COLLECTOR.reset(pool)
     act_store = {}
-    sent_ends = [e - 1 for (s, e) in token_ranges]
+    sent_ends = [e - 1 for (s_, e) in token_ranges]
     def act_hook(li):
         def fn(module, a, output):
             h = output[0] if isinstance(output, tuple) else output
@@ -67,14 +67,14 @@ for _, r in m.iterrows():
     for h in handles:
         h.remove()
     verts = E.vert_scores_from_sent_mats(E.COLLECTOR.sent_mats, n_layers, n_heads)
+    ents = np.stack([E.COLLECTOR.ent_mats[li].numpy()
+                     for li in sorted(E.COLLECTOR.ent_mats)])
+    acts = np.stack([act_store[li].numpy() for li in act_layers])
     verts_paper = E.vert_scores_from_sent_mats(
         E.COLLECTOR.sent_mats, n_layers, n_heads,
         proximity_ignore=20, drop_first=10)
     verts_rank = E.vert_scores_from_sent_mats(
         E.COLLECTOR.sent_mats, n_layers, n_heads, rank_normalize=True)
-    ents = np.stack([E.COLLECTOR.ent_mats[li].numpy()
-                     for li in sorted(E.COLLECTOR.ent_mats)])
-    acts = np.stack([act_store[li].numpy() for li in act_layers])
     act_traj = np.stack([act_store[(li, "traj")].numpy() for li in act_layers])
     np.savez_compressed(out_path, verts=verts,
                         verts_paper=verts_paper.astype(np.float16),

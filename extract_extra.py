@@ -1,6 +1,6 @@
 """Attention+activation extraction for the screening-2 union set.
 
-Reads extraction_manifest.parquet (ds, pi, ridx, label, prompt_cued, text) and
+Reads extraction_manifest_extra.parquet (ds, pi, ridx, label, prompt_cued, text) and
 reuses the fixed machinery from extract_within_problem (pooled attention kernel,
 separate prompt/generation tokenization, entropy, activations).
 """
@@ -21,7 +21,7 @@ ap.add_argument("--out-dir", default="extracted_s2")
 ap.add_argument("--limit", type=int, default=None)
 args = ap.parse_args()
 
-m = pd.read_parquet("extraction_manifest.parquet")
+m = pd.read_parquet("extraction_manifest_extra.parquet")
 if args.limit:
     m = m.head(args.limit)
 
