@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-DIRS = ["extracted_s2_causal", "extracted_extra_causal"]
+DIRS = ["extracted_s2_final", "extracted_extra_final"]
 TOP_K = 20
 
 
@@ -48,10 +48,17 @@ def load():
                        ridx=int(m.group(3)), label=str(z["label"]),
                        prereg=bool(z["prereg"]), gap=float(z["gap"]),
                        n=int(z["n_sentences"]))
+            pl = int(z["prompt_len"])
             for key, name in [("verts", "ours"), ("verts_paper", "paper"),
                               ("verts_rank", "rank")]:
                 if key in z.files:
-                    k, lay = kurt_top(z[key].astype(np.float32))
+                    v = z[key].astype(np.float32)
+                    if name == "paper":
+                        # paper computes over reasoning sentences only and
+                        # drops the first 10 of those (saved vector has
+                        # global drop; re-slice relative to reasoning start)
+                        v = v[:, :, pl + 10:]
+                    k, lay = kurt_top(v)
                 else:  # cont_* files carry only the base verts
                     k, lay = np.nan, None
                 row[f"kurt_{name}"] = k
@@ -102,7 +109,7 @@ def main():
 
     crit = pd.read_csv("screening2_criteria.csv")[["pi", "gain", "nr_acc"]]
     df = df.merge(crit, on="pi", how="left")
-    s2 = df[df.src == "extracted_s2_causal"]
+    s2 = df[df.src == "extracted_s2_final"]
     strata = {"prereg": s2[s2.prereg], "gap>=0.7": s2[s2.gap >= 0.7],
               "gap>=0.7 & gain>0": s2[(s2.gap >= 0.7) & (s2.gain > 0)],
               "union(36)": s2}
