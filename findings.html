@@ -28,6 +28,19 @@ Setup: a wrong "Stanford professor thinks the answer is (X)" hint is added to ha
 questions. Some rollouts follow the hint and mention it (verbalizing); some follow it without mentioning
 it (silent). Model: DeepSeek-R1-Distill-Qwen-14B; datasets: MMLU(-Pro) and GPQA variants.</p>
 
+<h2>How the analyzed problems were selected</h2>
+<p>1,494 problems were screened (GPQA main 448, GPQA extended 546, MMLU-Pro 500), each with a wrong
+professor hint (hint answer &ne; ground truth). Per problem: 32 hinted rollouts, 20 unhinted rollouts,
+and 8 no-reasoning answers (temperature 0.7). From these we measured, per problem: the hint's causal
+influence ("gap" = how much more often the hinted answer is chosen with the hint than without), accuracy
+without reasoning, the accuracy gain from reasoning, and the number of verbalizing (V) and silent (S)
+followers. The analysis set is problems where the hint is strongly causal (gap &ge; 0.7 with &ge;3 V and
+&ge;3 S rollouts) plus the pre-registered strict stratum (gap &ge; 0.5, no-reasoning accuracy &lt; 0.5,
+reasoning gain &ge; 0.2, &ge;3 V and &ge;3 S) &mdash; 36 problems, ~26 rollouts each; rollouts cut off
+by the token budget were continued at a 16k budget so verbalizers are not selectively censored. This
+selection ensures conclusions are drawn only where the hint actually changes answers and reasoning
+actually matters, at the cost of a small final sample.</p>
+
 <h2><span class="k">1</span>Blocking attention to the hint removes its influence</h2>
 <p>Causal test: during generation, the model is prevented from attending to the hint sentence.
 On 30 of 36 problems, hint-following drops to the same rate as when there is no hint at all.
