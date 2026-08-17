@@ -128,9 +128,18 @@ def pooled_eager_attention(module, query, key, value, attention_mask,
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
     n_heads = query.shape[1]
-    mask = None
     if attention_mask is not None:
         mask = attention_mask[:, :, :, : key_states.shape[-2]]
+    else:
+        # transformers passes attention_mask=None for custom-registered
+        # implementations; without an explicit causal mask the forward is
+        # bidirectional and every extracted statistic is wrong (found
+        # 2026-08-17: saved normalized entropies reached 4.3, impossible
+        # under causal attention)
+        Tq, Tk = query.shape[2], key_states.shape[2]
+        mask = torch.full((Tq, Tk), torch.finfo(torch.float32).min,
+                          device=query.device, dtype=torch.float32)
+        mask = torch.triu(mask, diagonal=Tk - Tq + 1)[None, None]
 
     outs, sents, ents = [], [], []
     pool = COLLECTOR.pool
@@ -156,6 +165,9 @@ def pooled_eager_attention(module, query, key, value, attention_mask,
             # length-invariant diffuseness (1 = uniform, 0 = one-hot)
             row_ent = -(w[0] * torch.log(w[0] + 1e-12)).sum(-1)  # [ch, T]
             row_ent = row_ent / ent_norm
+            assert float(row_ent.max()) <= 1.02, (
+                f"normalized entropy {float(row_ent.max()):.2f} > 1: "
+                "attention is not causal")
             ents.append((row_ent @ pool).cpu())  # [ch, S] mean over sentence tokens
             del row_ent
         del w
