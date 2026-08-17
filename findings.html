@@ -28,6 +28,19 @@ Setup: a wrong "Stanford professor thinks the answer is (X)" hint is added to ha
 questions. Some rollouts follow the hint and mention it (verbalizing); some follow it without mentioning
 it (silent). Model: DeepSeek-R1-Distill-Qwen-14B; datasets: MMLU(-Pro) and GPQA variants.</p>
 
+<div class="box"><strong>Correction in progress (Aug 17).</strong> A bug was found in the custom
+attention kernel used for extraction: the library passes no causal mask to custom kernels, so the
+extraction forward passes ran with bidirectional attention (proof: saved normalized entropies reach 4.3;
+the causal bound is 1.0). Every attention-map statistic on this page &mdash; finding 2's measures, the
+layer-depth note in the conclusions, the probe inputs of finding 5 &mdash; is being re-measured with the
+fixed kernel. Separately, a cue-swap control has overturned finding 1's "absorption" exception: the 6
+problems that kept following the hint under blocking do so even when the hint names a different answer,
+so that was the blocked configuration's own answer preference, not hint influence &mdash; blocking
+eliminates hint influence everywhere. Whether the blocking runs themselves need re-running under the
+fixed kernel is being checked. Behavioral results (screening rates, the position effect, the hiring
+decisions and reasoning texts) involve no custom kernel and are unaffected. The page will be updated
+as re-runs complete.</div>
+
 <h2>How the analyzed problems were selected</h2>
 <p>1,494 problems were screened (GPQA main 448, GPQA extended 546, MMLU-Pro 500), each with a wrong
 professor hint (hint answer &ne; ground truth). Per problem: 32 hinted rollouts, 20 unhinted rollouts,
