@@ -8,8 +8,6 @@ A replication/extension of the Thought Anchors framework
 [thought-anchors-faithfulness.vercel.app](https://thought-anchors-faithfulness.vercel.app/)**
 (the Aug 2026 update at the top; the interactive attention explorer below it).
 
-## Repo layout
-
 - `dataset_prep/` - building the MMLU/GPQA question sets
 - `data_generation/` - generating cued/uncued/no-reasoning rollouts (vLLM)
 - `whitebox_extraction/` - recording attention and activations from existing rollouts
