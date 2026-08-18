@@ -1,0 +1,53 @@
+1459 rollouts, 56 problems (657V/802S)
+VALIDITY: max normalized entropy 0.989 (OK, causal)
+kurt_ours: n=1459 rho(kurt, length)=+0.95
+kurt_paper: n=1331 rho(kurt, length)=+0.93
+kurt_rank: n=1459 rho(kurt, length)=+0.56
+
+== prereg: 21 problems
+  kurt_ours  raw  : n=21 d=+0.79 p=0.0007 90%CI[+0.59,+1.12] -> EFFECT
+  kurt_ours  resid: n=21 d=+0.33 p=0.2157 90%CI[+0.00,+0.65] -> inconclusive
+  kurt_paper raw  : n=20 d=+0.71 p=0.0073 90%CI[+0.43,+1.07] -> EFFECT
+  kurt_paper resid: n=20 d=+0.39 p=0.2943 90%CI[+0.07,+0.70] -> inconclusive
+  kurt_rank  raw  : n=21 d=+0.37 p=0.0888 90%CI[+0.03,+0.77] -> inconclusive
+  kurt_rank  resid: n=21 d=+0.02 p=0.8382 90%CI[-0.41,+0.35] -> inconclusive
+  ent        raw  : n=21 d=+0.29 p=0.4319 90%CI[-0.06,+0.59] -> inconclusive
+  ent        resid: n=21 d=+0.35 p=0.2290 90%CI[+0.03,+0.64] -> inconclusive
+
+== gap>=0.7: 24 problems
+  kurt_ours  raw  : n=24 d=+0.33 p=0.3596 90%CI[+0.03,+0.58] -> inconclusive
+  kurt_ours  resid: n=24 d=+0.07 p=0.8115 90%CI[-0.35,+0.34] -> inconclusive
+  kurt_paper raw  : n=23 d=+0.39 p=0.1511 90%CI[+0.08,+0.70] -> inconclusive
+  kurt_paper resid: n=23 d=+0.19 p=0.9406 90%CI[-0.16,+0.48] -> inconclusive
+  kurt_rank  raw  : n=24 d=+0.18 p=0.2897 90%CI[-0.15,+0.57] -> inconclusive
+  kurt_rank  resid: n=24 d=+0.03 p=0.8774 90%CI[-0.32,+0.38] -> inconclusive
+  ent        raw  : n=24 d=-0.04 p=0.2522 90%CI[-0.57,+0.25] -> inconclusive
+  ent        resid: n=24 d=+0.12 p=0.8334 90%CI[-0.32,+0.38] -> inconclusive
+
+== gap>=0.7 & gain>0: 12 problems
+  kurt_ours  raw  : n=12 d=+0.57 p=0.0923 90%CI[+0.23,+1.00] -> inconclusive
+  kurt_ours  resid: n=12 d=+0.28 p=0.7334 90%CI[-0.21,+0.71] -> inconclusive
+  kurt_paper raw  : n=11 d=+0.64 p=0.0674 90%CI[+0.24,+1.15] -> inconclusive
+  kurt_paper resid: n=11 d=+0.46 p=0.2783 90%CI[-0.00,+0.99] -> inconclusive
+  kurt_rank  raw  : n=12 d=+0.61 p=0.0425 90%CI[+0.20,+1.25] -> inconclusive
+  kurt_rank  resid: n=12 d=+0.37 p=0.2334 90%CI[-0.07,+0.92] -> inconclusive
+  ent        raw  : n=12 d=-0.01 p=0.3394 90%CI[-1.00,+0.35] -> inconclusive
+  ent        resid: n=12 d=+0.14 p=0.6772 90%CI[-0.67,+0.46] -> inconclusive
+
+== union(36): 36 problems
+  kurt_ours  raw  : n=36 d=+0.48 p=0.0249 90%CI[+0.27,+0.71] -> inconclusive
+  kurt_ours  resid: n=36 d=+0.17 p=0.6028 90%CI[-0.12,+0.40] -> inconclusive
+  kurt_paper raw  : n=35 d=+0.51 p=0.0130 90%CI[+0.28,+0.76] -> inconclusive
+  kurt_paper resid: n=35 d=+0.29 p=0.4809 90%CI[+0.03,+0.52] -> inconclusive
+  kurt_rank  raw  : n=36 d=+0.17 p=0.2087 90%CI[-0.11,+0.48] -> inconclusive
+  kurt_rank  resid: n=36 d=-0.04 p=0.7979 90%CI[-0.32,+0.24] -> inconclusive
+  ent        raw  : n=36 d=+0.15 p=0.9567 90%CI[-0.14,+0.38] -> inconclusive
+  ent        resid: n=36 d=+0.24 p=0.7740 90%CI[-0.03,+0.45] -> inconclusive
+
+== receiver-head layer depth (paired V-S, top-20 kurtosis heads)
+  ours  analysis36: n=36 d=+0.29 p=0.0692
+  ours  widened: n=56 d=+0.25 p=0.0563
+  paper analysis36: n=35 d=+0.49 p=0.0082
+  paper widened: n=55 d=+0.45 p=0.0015
+  rank  analysis36: n=36 d=-0.15 p=0.4891
+  rank  widened: n=56 d=-0.17 p=0.2501
