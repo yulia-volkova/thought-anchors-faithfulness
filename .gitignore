@@ -38,3 +38,5 @@ extracted_within_problem/
 extracted_v2/
 hiring_full/
 data/mmlu_cue_long.csv
+FEEDBACK_AND_PLAN.md
+feedback/
