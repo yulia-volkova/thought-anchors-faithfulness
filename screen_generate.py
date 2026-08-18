@@ -26,8 +26,7 @@ def main():
     if os.path.exists(OUT):
         done = set(pd.read_parquet(OUT, columns=["pi"]).pi.unique())
         print(f"resuming: {len(done)} problems already done")
-    llm = LLM(model=MODEL, max_model_len=10240, gpu_memory_utilization=0.9,
-              enforce_eager=True, max_num_seqs=256)
+    llm = LLM(model=MODEL, max_model_len=12288, gpu_memory_utilization=0.92)
 
     buf = []
     todo = df[~df.pi.isin(done)]
@@ -38,10 +37,19 @@ def main():
             for cond, n, mt in CONDS:
                 prompts.append(r[f"prompt_{cond}"])
                 meta.append((r.ds, int(r.pi), cond, n, mt, r.gt_answer, r.cue_answer))
-        outs = []
+        tok = llm.get_tokenizer()
+        kept_prompts, kept_meta, outs = [], [], []
         for (p, m) in zip(prompts, meta):
+            plen = len(tok.encode(p))
+            if plen > 11520:
+                print(f"SKIP pi {m[1]} {m[2]}: prompt {plen} tokens", flush=True)
+                continue
+            kept_prompts.append(p)
+            kept_meta.append(m)
             outs.append(SamplingParams(n=m[3], temperature=0.7, top_p=0.95,
-                                       max_tokens=m[4], seed=None))
+                                       max_tokens=max(256, min(m[4], 12288 - plen - 32)),
+                                       seed=None))
+        prompts, meta = kept_prompts, kept_meta
         results = llm.generate(prompts, outs)
         for m, res in zip(meta, results):
             for j, o in enumerate(res.outputs):
