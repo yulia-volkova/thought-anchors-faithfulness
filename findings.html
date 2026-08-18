@@ -9,7 +9,7 @@
 :root[data-theme="light"] { --bg:#fbfaf8; --ink:#1d1f24; --sub:#676661; --blue:#2a78d6;
   --orange:#c94f1d; --line:#e4e1da; --card:#f2f0ea; }
 body { background:var(--bg); color:var(--ink); margin:0; font:17px/1.6 Charter,Georgia,serif; }
-main { max-width:700px; margin:0 auto; padding:3rem 1.2rem 5rem; }
+main { max-width:900px; margin:0 auto; padding:3rem 1.2rem 5rem; }
 h1 { font-size:1.9rem; line-height:1.2; text-wrap:balance; }
 h2 { font-size:1.2rem; margin:2.4rem 0 .5rem; }
 .k { color:var(--blue); font:700 .95rem/1 -apple-system,sans-serif; margin-right:.4rem; }
@@ -34,19 +34,19 @@ mentioning it (silent).</p>
 
 <h2>Setup and problem selection</h2>
 <ul>
-<li>1,494 problems screened (GPQA main 448, GPQA extended 546, MMLU-Pro 500), each with a wrong professor cue.</li>
-<li>Per problem: 32 cueed rollouts, 20 uncueed, 8 no-reasoning answers (temp 0.7).</li>
-<li>Measured per problem: cue influence (gap), no-reasoning accuracy, reasoning gain, counts of verbalizing (V) and silent (S) cue-following rollouts.</li>
-<li>Analysis set: 36 problems total, on average 26 usable rollouts per problem (the number varies with how many silent and verbalizing rollouts each problem produced). 24 problems where the cue strongly changes answers (gap &ge; 0.7, with &ge;3 verbalizing and &ge;3 silent rollouts), plus 21 meeting stricter criteria (cue influence &ge; 0.5, no-reasoning accuracy &lt; 0.5, accuracy gain from reasoning &ge; 0.2, &ge;3 verbalizing and &ge;3 silent rollouts); 9 problems are in both groups.</li>
-<li>Rollouts that hit the length limit were resumed at 16k tokens. Average rollout length: 219 sentences on GPQA main, 247 on GPQA extended, 80 on MMLU-Pro (~5.0k / 5.3k / 1.6k tokens).</li>
+<li>1,494 problems screened (GPQA main 448, GPQA extended 546, MMLU-Pro 500), each with an incorrect professor cue appended.</li>
+<li>Generated per problem: 32 cued rollouts, 20 uncued rollouts, and 8 no-reasoning answers (temperature 0.7).</li>
+<li>Measured per problem: the cue's influence (gap), no-reasoning accuracy, the accuracy gain from reasoning, and the number of verbalizing (V) and silent (S) cue-following rollouts.</li>
+<li>The analysis set contains 36 problems, with on average 26 usable rollouts per problem (the number varies with how many silent and verbalizing rollouts each problem produced). 24 problems where the cue strongly changes answers (gap &ge; 0.7, with &ge;3 verbalizing and &ge;3 silent rollouts), plus 21 meeting stricter criteria (cue influence &ge; 0.5, no-reasoning accuracy &lt; 0.5, accuracy gain from reasoning &ge; 0.2, &ge;3 verbalizing and &ge;3 silent rollouts); 9 problems are in both groups.</li>
+<li>Rollouts that reached the length limit were resumed with a 16k-token budget. Average rollout length: 219 sentences on GPQA main, 247 on GPQA extended, 80 on MMLU-Pro (~5.0k / 5.3k / 1.6k tokens).</li>
 </ul>
 
 <h2><span class="k">1</span>Attention statistics do not separate silent from verbalizing rollouts</h2>
 <ul>
 <li>Hypothesis: silent cue-following has a recognizable attention signature in terms of "thought anchors".</li>
-<li>First version compared consistently-silent problems against consistently-verbalizing ones (p = 0.04). But upon further investigation, the same kurtosis gap shows up between those problem groups in <em>uncued</em> rollouts, where no silent/verbalizing behavior exists. So it is not about faithfulness, just problem selection.</li>
-<li>Fix: compare within problems - study the ones where the same problem produces both silent and verbalizing rollouts, each compared with its own.</li>
-<li>Length becomes a confounder. <table style="margin:.5rem 0; border-collapse:collapse; font-size:.95em">
+<li>The first analysis compared consistently-silent problems against consistently-verbalizing ones (p = 0.04). But upon further investigation, the same kurtosis gap shows up between those problem groups in <em>uncued</em> rollouts, where no silent/verbalizing behavior exists. So it is not about faithfulness, just problem selection.</li>
+<li>The alternative approach is within-problem comparison: problems where the same problem produces both silent and verbalizing rollouts, each problem's rollouts compared with each other.</li>
+<li>Length becomes a confounder: <table style="margin:.5rem 0; border-collapse:collapse; font-size:.95em">
 <tr><th style="text-align:left;padding:.15rem .8rem .15rem 0">rollout type</th>
 <th style="text-align:left;padding:.15rem .8rem">mean length (sentences)</th></tr>
 <tr><td style="padding:.15rem .8rem .15rem 0">no cue (uncued)</td><td style="padding:.15rem .8rem">~200</td></tr>
@@ -54,7 +54,14 @@ mentioning it (silent).</p>
 <tr><td style="padding:.15rem .8rem .15rem 0">cue, silent</td><td style="padding:.15rem .8rem">~186 (shorter, p = 0.001)</td></tr>
 </table>
 While on average giving the cue produces shorter CoT, the cue verbalizers have longer CoT than silent cue-followers: not only do they verbalize the cue itself, the mention also sends them into additional deliberation rounds where they tend to name all the answer options again (3x more option-naming after the mention) and this extra length is what makes their kurtosis higher. The gap is only an average - 41% of same-problem verbalizing rollouts are still shorter than silent ones.<br><br>Example of the post-mention text: <em>"Wait, the professor thinks the answer is B) 9.0. So, perhaps the reasoning is that adding X increases the pH, making it basic. But why would that be the case? Alternatively, perhaps the reaction is exothermic..."</em></li>
-<li>How the score works: each head gets a kurtosis over how much later sentences look back at each sentence (high = look-back concentrated on a few sentences); a rollout's score is the mean of its top-20 heads - the receiver heads. Thought Anchors (Bogdan et al., <a href="https://arxiv.org/abs/2506.19143" target="_blank">arXiv:2506.19143</a>, Section 4.1) defines these as "attention heads that narrow attention toward specific sentences", scored by "the mean of [each sentence's] columns below the diagonal to measure the extent each sentence receives attention from all downstream sentences". The paper's method leaves these out: attention from the few sentences immediately after (the model always reads what it just wrote, so that says nothing), and the opening sentences (the sequence start attracts attention for its position, not its content). Rank normalization is applied but it does not help here: it rescales values within each row, but the sink is still the top-ranked target of nearly every row, so it would still dominate; dropping it is the only way to remove it. The table shows the verbalizing-minus-silent difference d (standard-deviation units, paired within problem, 21-problem strict sample) under different settings:
+<li>How the score works:
+<ul>
+<li>Each attention head gets a kurtosis over how much later sentences look back at each sentence (high = look-back concentrated on a few sentences). A rollout's score is the mean of its top-20 heads - the receiver heads, which Thought Anchors (Bogdan et al., <a href="https://arxiv.org/abs/2506.19143" target="_blank">arXiv:2506.19143</a>, Section 4.1) defines as "attention heads that narrow attention toward specific sentences".</li>
+<li>Two parts of the text are excluded, following the paper: the few sentences immediately after each sentence (the model always reads what it just wrote), and the opening sentences (the sequence start attracts attention for its position, not its content).</li>
+<li>The paper also converts each sentence's look-back weights into rankings before averaging (rank normalization), which evens out scale differences. The Thought Anchors authors themselves note (Appendix C.4) that positional effects are only minimally accounted for.</li>
+</ul>
+<br>
+The table shows the verbalizing-minus-silent difference d (standard-deviation units, paired within problem, 21-problem strict sample) under different settings:
 <table style="margin:.5rem 0; border-collapse:collapse; font-size:.9em"><tr><th style='text-align:left;padding:.15rem .7rem .15rem 0'>metric version</th><th style='text-align:left;padding:.15rem .7rem'>raw</th><th style='text-align:left;padding:.15rem .7rem'>length-controlled</th></tr><tr><td style='padding:.15rem .7rem .15rem 0'>lighter exclusion windows (skip 1 sentence, ignore 3 neighbors)</td><td style='padding:.15rem .7rem'>d = +0.79, p = 0.0007</td><td style='padding:.15rem .7rem'>d = +0.33, p = 0.22</td></tr><tr><td style='padding:.15rem .7rem .15rem 0'>paper's exclusion windows (skip 10, ignore 20, reasoning sentences only)</td><td style='padding:.15rem .7rem'>d = +0.71, p = 0.007</td><td style='padding:.15rem .7rem'>d = +0.39, p = 0.29</td></tr><tr><td style='padding:.15rem .7rem .15rem 0'>rank-normalized (paper's depth control)</td><td style='padding:.15rem .7rem'>d = +0.37, p = 0.09</td><td style='padding:.15rem .7rem'>d = +0.02, p = 0.84</td></tr></table>
 &rarr; The effect is fully taken away when controlling for length.</li>
 </ul>
@@ -64,7 +71,7 @@ While on average giving the cue produces shorter CoT, the cue verbalizers have l
 <ul>
 <li>Cue at prompt start: following often silent (37% of followers verbalize).</li>
 <li>Cue mid-prompt: following halves; ~90% of followers verbalize.</li>
-<li>Among cue-following problems, verbalizing the cue tracks the cue's decisiveness: the more the cue moves a problem's answers (the cue-following rate across rollouts of the same problem id), the more often it is mentioned (correlation +0.24, p = 3e-7, 457 problems).</li>
+<li>The stronger the cue's effect on a problem's answers, the more often it gets mentioned: correlation +0.24 between a problem's cue influence and the share of its followers that verbalize (p = 3e-7, 457 problems).</li>
 <li>Mentions appear late (~65% through the rollout), usually with hedging ("maybe the professor's answer..."), and recur ~2.5 times per rollout. Sentences after the first mention name answer options 3x more often.</li>
 </ul>
 
@@ -77,7 +84,7 @@ While on average giving the cue produces shorter CoT, the cue verbalizers have l
 
 <h2><span class="k">4</span>We can't predict upcoming verbalization from the model's activations</h2>
 <ul>
-<li>Design from Boppana et al.: a linear classifier reads the state at each sentence and predicts whether the rollout will mention the cue or stay silent. Positions at or after a mention are excluded; there is a held-out test set.</li>
+<li>Following the design of Boppana et al., a linear classifier reads the model's state at each sentence and predicts whether the rollout will go on to mention the cue or stay silent. Positions at or after a mention are excluded, and evaluation uses held-out problems.</li>
 </ul>
 <p><strong>Result</strong></p>
 <ul>
