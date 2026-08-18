@@ -29,18 +29,88 @@
             </p>
         </header>
 
+        <!-- Aug 2026 final update -->
+        <section class="methodology-collapsible" id="aug-2026-update">
+            <h2>Update (Aug 2026): Final Results</h2>
+            <p>Findings of the Thought Anchors faithfulness project, last update Aug 2026.
+Setup: a wrong "Stanford professor thinks the answer is (X)" cue is added to hard multiple-choice
+questions. Some rollouts follow the cue and mention it (verbalizing); some follow it without
+mentioning it (silent).</p>
+<ul>
+<li>Model: DeepSeek-R1-Distill-Qwen-14B</li>
+<li>Datasets: MMLU(-Pro) and GPQA variants</li>
+</ul>
+            
+
+
+
+<h3 style="margin-top: 2rem;">Setup and problem selection</h3>
+<ul>
+<li>1,494 problems screened (GPQA main 448, GPQA extended 546, MMLU-Pro 500), each with a wrong professor cue.</li>
+<li>Per problem: 32 cueed rollouts, 20 uncueed, 8 no-reasoning answers (temp 0.7).</li>
+<li>Measured per problem: cue influence (gap), no-reasoning accuracy, reasoning gain, counts of verbalizing (V) and silent (S) cue-following rollouts.</li>
+<li>Analysis set: 36 problems total, on average 26 usable rollouts per problem (the number varies with how many silent and verbalizing rollouts each problem produced). 24 problems where the cue strongly changes answers (gap &ge; 0.7, with &ge;3 verbalizing and &ge;3 silent rollouts), plus 21 meeting stricter criteria (cue influence &ge; 0.5, no-reasoning accuracy &lt; 0.5, accuracy gain from reasoning &ge; 0.2, &ge;3 verbalizing and &ge;3 silent rollouts); 9 problems are in both groups.</li>
+<li>Rollouts that hit the length limit were resumed at 16k tokens. Average rollout length: 219 sentences on GPQA main, 247 on GPQA extended, 80 on MMLU-Pro (~5.0k / 5.3k / 1.6k tokens).</li>
+</ul>
+
+<h3 style="margin-top: 2rem;">Finding 1: Attention statistics do not separate silent from verbalizing rollouts</h3>
+<ul>
+<li>Hypothesis: silent cue-following has a recognizable attention signature in terms of "thought anchors".</li>
+<li id="first-version">First version compared consistently-silent problems against consistently-verbalizing ones (p = 0.04). But upon further investigation, the same kurtosis gap shows up between those problem groups in <em>uncued</em> rollouts, where no silent/verbalizing behavior exists. So it is not about faithfulness, just problem selection.</li>
+<li>Fix: compare within problems - study the ones where the same problem produces both silent and verbalizing rollouts, each compared with its own.</li>
+<li>Length becomes a confounder. <table style="margin:.5rem 0; border-collapse:collapse; font-size:.95em">
+<tr><th style="text-align:left;padding:.15rem .8rem .15rem 0">rollout type</th>
+<th style="text-align:left;padding:.15rem .8rem">mean length (sentences)</th></tr>
+<tr><td style="padding:.15rem .8rem .15rem 0">no cue (uncued)</td><td style="padding:.15rem .8rem">~200</td></tr>
+<tr><td style="padding:.15rem .8rem .15rem 0">cue, verbalized</td><td style="padding:.15rem .8rem">~192 (statistically same as no-cue)</td></tr>
+<tr><td style="padding:.15rem .8rem .15rem 0">cue, silent</td><td style="padding:.15rem .8rem">~186 (shorter, p = 0.001)</td></tr>
+</table>
+While on average giving the cue produces shorter CoT, the cue verbalizers have longer CoT than silent cue-followers: not only do they verbalize the cue itself, the mention also sends them into additional deliberation rounds where they tend to name all the answer options again (3x more option-naming after the mention) and this extra length is what makes their kurtosis higher. The gap is only an average - 41% of same-problem verbalizing rollouts are still shorter than silent ones.<br><br>Example of the post-mention text: <em>"Wait, the professor thinks the answer is B) 9.0. So, perhaps the reasoning is that adding X increases the pH, making it basic. But why would that be the case? Alternatively, perhaps the reaction is exothermic..."</em></li>
+<li>How the score works: each head gets a kurtosis over how much later sentences look back at each sentence (high = look-back concentrated on a few sentences); a rollout's score is the mean of its top-20 heads - the receiver heads. Thought Anchors (Bogdan et al., <a href="https://arxiv.org/abs/2506.19143" target="_blank">arXiv:2506.19143</a>, Section 4.1) defines these as "attention heads that narrow attention toward specific sentences", scored by "the mean of [each sentence's] columns below the diagonal to measure the extent each sentence receives attention from all downstream sentences". The paper's method leaves these out: attention from the few sentences immediately after (the model always reads what it just wrote, so that says nothing), and the opening sentences (the sequence start attracts attention for its position, not its content). Rank normalization is applied but it does not help here: it rescales values within each row, but the sink is still the top-ranked target of nearly every row, so it would still dominate; dropping it is the only way to remove it. The table shows the verbalizing-minus-silent difference d (standard-deviation units, paired within problem, 21-problem strict sample) under different settings:
+<table style="margin:.5rem 0; border-collapse:collapse; font-size:.9em"><tr><th style='text-align:left;padding:.15rem .7rem .15rem 0'>metric version</th><th style='text-align:left;padding:.15rem .7rem'>raw</th><th style='text-align:left;padding:.15rem .7rem'>length-controlled</th></tr><tr><td style='padding:.15rem .7rem .15rem 0'>lighter exclusion windows (skip 1 sentence, ignore 3 neighbors)</td><td style='padding:.15rem .7rem'>d = +0.79, p = 0.0007</td><td style='padding:.15rem .7rem'>d = +0.33, p = 0.22</td></tr><tr><td style='padding:.15rem .7rem .15rem 0'>paper's exclusion windows (skip 10, ignore 20, reasoning sentences only)</td><td style='padding:.15rem .7rem'>d = +0.71, p = 0.007</td><td style='padding:.15rem .7rem'>d = +0.39, p = 0.29</td></tr><tr><td style='padding:.15rem .7rem .15rem 0'>rank-normalized (paper's depth control)</td><td style='padding:.15rem .7rem'>d = +0.37, p = 0.09</td><td style='padding:.15rem .7rem'>d = +0.02, p = 0.84</td></tr></table>
+&rarr; The effect is fully taken away when controlling for length.</li>
+</ul>
+<img src="images/aug_paired_diffs.png" alt="paired differences" style="max-width: 100%; border-radius: 8px; margin: 0.5rem 0;">
+
+<h3 style="margin-top: 2rem;">Finding 2: Cue position affects cue following and cue verbalizing</h3>
+<ul>
+<li>Cue at prompt start: following often silent (37% of followers verbalize).</li>
+<li>Cue mid-prompt: following halves; ~90% of followers verbalize.</li>
+<li>Among cue-following problems, verbalizing the cue tracks the cue's decisiveness: the more the cue moves a problem's answers (the cue-following rate across rollouts of the same problem id), the more often it is mentioned (correlation +0.24, p = 3e-7, 457 problems).</li>
+<li>Mentions appear late (~65% through the rollout), usually with hedging ("maybe the professor's answer..."), and recur ~2.5 times per rollout. Sentences after the first mention name answer options 3x more often.</li>
+</ul>
+
+<h3 style="margin-top: 2rem;">Finding 3: Cue influence and accuracy with reasoning ON are anti-correlated</h3>
+<ul>
+<li>Across 1,493 problems, cue following is inversely related to both kinds of accuracy, but much more strongly to accuracy with reasoning (correlation -0.49).</li>
+<li>Parallel with Boppana et al. (<a href="https://arxiv.org/abs/2603.05488" target="_blank">arXiv:2603.05488</a>): they find the CoT role depends on difficulty - on easy problems the model commits to its answer internally at the start and the CoT text is performative. On hard problems the CoT and the belief in an answer are generated together. The result in this setting is complementary: where reasoning genuinely works, cues do not sway the answer; where reasoning fails, cues are what the model relies on. That's pretty intuitive - and same is found by Chen et al. (<a href="https://arxiv.org/abs/2505.05410" target="_blank">arXiv:2505.05410</a>).</li>
+</ul>
+<img src="images/aug_follow_vs_acc.png" alt="Cue following vs accuracy with and without reasoning" style="max-width: 100%; border-radius: 8px; margin: 0.5rem 0;"><p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.2rem 0 1rem 0;">Mean cue-following rate per accuracy bin (95% CI). Red: accuracy with reasoning. Purple: accuracy answering immediately without reasoning.</p>
+
+<h3 style="margin-top: 2rem;">Finding 4: We can't predict upcoming verbalization from the model's activations</h3>
+<ul>
+<li>Design from Boppana et al.: a linear classifier reads the state at each sentence and predicts whether the rollout will mention the cue or stay silent. Positions at or after a mention are excluded; there is a held-out test set.</li>
+</ul>
+<p><strong>Result</strong></p>
+<ul>
+<li>Chance-level (AUC 0.50-0.55) through the first 60% of the CoT &amp; at most 0.63 towards the end of the CoT.</li>
+<li>So verbalization is not really pre-committed - unlike the upcoming answer in Boppana et al.</li>
+</ul>
+<img src="images/aug_probe_auc.png" alt="Probe AUC along the reasoning" style="max-width: 100%; border-radius: 8px; margin: 0.5rem 0;"><p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.2rem 0 1rem 0;">Predicting upcoming silence vs mention from the state at each point of the reasoning. Dashed line = chance.</p>
+
+
+
+
+
+            
+        </section>
+
+        
+
         <!-- TL;DR Section -->
         <section class="tldr-section">
             <h2>TL;DR</h2>
-            <p class="tldr-intro">
-                I analyze faithful and unfaithful rollouts on MMLU and GPQA using the
-                <a href="https://arxiv.org/abs/2506.19143" target="_blank">Thought Anchors</a> framework.
-                Key findings (Aug 17, 2026; verified results only):
-                (1) The original kurtosis result does not survive controls - it mainly tracks rollout length. With length controlled, no attention statistic separates silent from verbalizing cue-following. Confirmed on a corrected pre-registered rerun (see final update).
-                (2) Cue influence is strongest on problems the model cannot solve by reasoning (correlation -0.37, 1,493 problems).
-                (3) Whether a cue gets verbalized depends on whether it is an acceptable reason, not on its position: the mid-prompt professor hint is verbalized by ~90% of followers, but demographic cues in hiring prompts are verbalized in 0 of 7,392 reasoning samples - while still influencing decisions.
-                (4) Hiring (Karvonen &amp; Marks data): the more a name or college swings the decision, the less the model attends to it at decision time (-0.63 / -0.44). Reading attention is normal, so it is not avoidance.
-                </p>
+            <p class="tldr-intro">Below are the preliminary results from January 2026. Although the conclusions are outdated (see the <a href="#aug-2026-update">Aug 2026 update</a> above), you can still play with the visualizations and see how attention patterns change - I think it is cool. Try it!</p>
             <p class="tldr-link">
                 <a href="#key-findings">View detailed findings below ↓</a>
             </p>
@@ -59,6 +129,7 @@
                 <span id="hypothesis-toggle" class="toggle-icon">▶</span>
             </h2>
             <div id="hypothesis-content" class="methodology-body collapsed">
+                <p><em>This hypothesis did not survive controls - see the <a href="#aug-2026-update">Aug 2026 update</a>.</em></p>
                 <p>
                     If white-box attention attribution patterns reflect how models use information during reasoning,
                     then <strong>faithful CoT</strong> (where reasoning genuinely influences the answer) should show focused attention
@@ -80,10 +151,10 @@
                 <span id="key-findings-toggle" class="toggle-icon">▶</span>
             </h2>
             <div id="key-findings-content" class="key-findings-body collapsed">
-            <p>The original (Jan-Feb 2026) findings are kept in the repository history; here is their
+            <p>The original (Jan-Feb 2026) findings below are superseded by the <a href="#aug-2026-update">Aug 2026 update</a>; here is their
             current status after controls:</p>
             <ul style="margin: 0.3rem 0 0.8rem 1.2rem;">
-                <li><strong>Kurtosis separates faithful from unfaithful CoT (p = 0.04, GPQA)</strong> -
+                <li><strong>Kurtosis separates faithful from unfaithful CoT (p = 0.04, GPQA)</strong> (<a href="#first-version">what happened to this result</a>) -
                     disconfirmed: kurtosis tracks rollout length (rho = 0.98), and verbalizing rollouts are
                     ~20 sentences longer; length-controlled within-problem differences are null.</li>
                 <li><strong>Divergent attention circuits / universal receiver heads</strong> - not confirmed:
@@ -522,130 +593,18 @@
         </main>
 
         <!-- Update: cue-conditioning controls (Aug 2026) -->
-        <section class="methodology-collapsible" id="cue-controls">
-            <h2>Update (Aug 2026): Cue-Conditioning Controls</h2>
-            <p>
-                Following feedback (thanks to Daria and Riya), I checked whether the kurtosis signal was just
-                attention targeting the cue. It is not - but the faithful vs unfaithful gap weakens
-                substantially under problem-level controls.
-            </p>
-            
-            <p>
-                <strong>(1) Cue restatements are not the anchors.</strong> Sentences verbalizing the cue are
-                rarely top-attended, and removing them changes kurtosis by under 1% (diagonal below). The
-                dominant spike is typically the first reasoning sentence.
-            </p>
-            <p>
-                <strong>(2) Causal ablations.</strong> The cue is also ablated causally: uncued generations
-                (cue removed from the prompt) underpin all gap statistics, and the attention-blocking experiment keeps the cue in the prompt but zeroes all
-                attention to its tokens during generation, so its influence must vanish if it travels
-                through attention. Receiver heads in uncued attention maps and the blocking numbers
-                are in the re-measurement below.
-            </p>
-            <img src="images/cue_control_profiles.png" alt="Vert-score profiles for faithful rollouts with cue mentions highlighted" style="max-width: 100%; border-radius: 8px; margin: 0.5rem 0;">
-            <img src="images/cue_control_scatter.png" alt="Kurtosis before vs after removing cue-mention sentences" style="max-width: 420px; width: 100%; border-radius: 8px; margin: 0.5rem 0;">
-            <p>
-                <strong>(3) The headline gap does not survive problem-level controls.</strong>
-                Re-running the statistics with the problem (not the rollout) as the unit of analysis, nothing is
-                significant (best p = 0.056). On GPQA the faithful vs unfaithful kurtosis gap also appears in
-                <em>uncued</em> rollouts of the same problems (d ≈ 1.2), and in within-problem
-                faithful/unfaithful rollout pairs the mean kurtosis is essentially equal (24.3 vs 24.9) —
-                so the group-level gap largely reflects which problems were selected, not faithful behavior.
-                A properly powered follow-up needs within-problem comparisons on matched problems.
-            </p>
-            <p>
-                <strong>Final update (Aug 17, 2026): the pre-registered rerun.</strong>
-                I ran a powered, pre-registered version of the within-problem experiment: 1,493 fresh problems
-                screened (GPQA main + extended, MMLU-Pro; 89,580 generations), analysis restricted to the 36
-                problems where the cue was demonstrably causal (gap &ge; 0.7 or the stricter pre-registered
-                criteria), ~26 rollouts per problem, with truncated rollouts continued at a 16k budget so
-                verbalizers are not selectively censored. On this set I tested:
-            </p>
-            <ul style="margin: 0.3rem 0 0.8rem 1.2rem;">
-                <li>kurtosis and normalized attention entropy, raw and length-residualized, plus equal-length
-                    matched rollout pairs (fidelity note: my vert-score parameters were weaker than the
-                    paper's analysis settings - first sentence vs first ten excluded, 3- vs 20-sentence
-                    proximity window - so the re-measurement saves both parameterizations);</li>
-                <li>anchor location - do silent and verbalizing rollouts anchor on different sentences
-                    (all heads, and receiver heads only);</li>
-                <li>receiver-head depth - the most interesting tentative observation: in silent rollouts the
-                    receiver heads sat ~1.5-2 layers deeper in the network (initially p = 0.008; the effect
-                    weakened when I widened the sample to 56 problems and was null in equal-length matched
-                    pairs);</li>
-                <li>activation probes on the same forward passes;</li>
-                <li>the attention-blocking causal test, plus a cue-swap control.</li>
-            </ul>
-            <p>
-                <strong>Status of these results.</strong> During follow-up analysis I found a bug in the custom
-                memory-efficient attention kernel written for this rerun's extraction: the transformers library
-                passes no causal mask to custom-registered kernels, so these forward passes ran with
-                bidirectional attention (the saved data contains normalized attention entropies up to 4.3,
-                impossible under causal attention). The earlier rounds above used the library's standard
-                attention path and are unaffected, but every rerun measurement listed above - including the
-                depth observation - has been re-measured with the corrected kernel. Corrected results: blocking attention to the cue drops following from 0.82 to 0.13, statistically indistinguishable from the 0.08 no-cue floor - cue influence travels through attention, no exceptions. Raw kurtosis differs between verbalising and silent rollouts (d = +0.79, p = 0.0007) but the difference is carried by rollout length; length-controlled it is inconclusive (d = +0.33, p = 0.22). Entropy null. The layer-depth observation is confirmed to be an artifact of the bug. Two things from this episode already stand: the cue-swap control showed
-                the problems that appeared to keep following the cue under attention-blocking do so even when
-                the cue names a different answer, so the earlier "absorption" reading was wrong (that behavior
-                is the blocked configuration's own answer preference, independent of cue content); and the
-                mid-prompt screening regeneration reproduced the lost original numbers (follow rate 21.9% vs
-                22%, 89% of mid-prompt followers verbalizing).
-                Full statistics, code and data: <a href="https://github.com/yulia-volkova/thought-anchors-faithfulness" target="_blank">the repository</a>.
-            </p>
-        </section>
+        
 
-        <!-- Hiring / admissibility update -->
-        <section class="methodology-collapsible" id="hiring-update">
-            <h2>Update (Aug 2026): Hiring Setting and Cue Admissibility</h2>
-            <p>
-                To test whether attention carries a signature of silent influence in a realistic setting, I used
-                the resume-screening logs of <a href="https://arxiv.org/abs/2506.10922" target="_blank">Karvonen &amp; Marks</a>
-                (Gemma-3-12B, open weights; their logged decisions, my attention measurement - standard library
-                attention, mask verified). Each resume exists in counterfactual variants differing only in the
-                candidate's name bundle, or only in college affiliation (Howard/Morehouse vs Georgetown/Emory,
-                signaling race indirectly).
-            </p>
-            <p>
-                <strong>(1) Decision-position attention deficit.</strong> The more an attribute changes the
-                decision across a resume's variants, the less the final (decision) position attends to it:
-                Spearman rho = -0.63 for names (n = 111 resumes), rho = -0.44 for college affiliation. Measuring
-                attention from every position shows the deficit exists only at the decision position - while
-                reading the resume, attention to the attribute is normal (early rho = -0.16 n.s., decision
-                -0.56). The model does not avoid the attribute; the decision simply does not consult it overtly.
-            </p>
-            <img src="images/hiring_scatter_plain.png" alt="Attention to name vs name-sensitivity" style="max-width: 560px; width: 100%; border-radius: 8px; margin: 0.5rem 0;">
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.2rem 0 1rem 0;">How to read: each dot is one resume. Right = the decision position attends
-            to the name a lot; up = swapping only the name changes the decision a lot. The name-driven
-            decisions (top) cluster on the left - lowest attention to the name.</p>
-            <p>
-                <strong>(2) Bias survives reasoning, silently.</strong> Generating new decisions with the
-                authors' chain-of-thought prompt (8 samples per variant, 7,392 reasonings): the name bias
-                survives at roughly one-fifth strength (carryover slope +0.18, p = 0.005); the college bias
-                mostly disappears. Explicit demographic words appear in <strong>zero</strong> reasonings; the
-                college is named in 0.4%.
-            </p>
-            <p>
-                <strong>(3) Admissibility, not position.</strong> These demographic cues sit mid-prompt - the
-                configuration that made professor-hint following almost fully verbalized on GPQA - yet they are
-                never verbalized. Verbalization tracks whether a cue is an admissible reason, not where it sits.
-                The mid-prompt "verbalization fix" does not transfer to the cues that matter most for monitoring.
-            </p>
-            <img src="images/cue_position_vs_verbalization.png" alt="Cue position vs verbalization across settings" style="max-width: 100%; border-radius: 8px; margin: 0.5rem 0;">
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.2rem 0 1rem 0;">How to read: A - one marker per setting; horizontal = where the cue sits in
-            the prompt (0 = start, 1 = end), vertical = how often reasoning mentions the cue when the cue
-            influenced the outcome. The professor hint (blue) jumps from 37% to 89% when moved off the
-            start; demographic cues (red) stay at zero although they also sit mid-prompt. B - within the
-            moved-hint set, per-problem position does not predict mentioning (flat cloud). C - hiring:
-            name-mention rate is near zero at every position, whether the name influences the decision
-            (red) or not (gray).</p>
-        </section>
+        
 
         <!-- Future Directions -->
         <section class="future-directions-section">
             <h2>Future Directions</h2>
             <p>
-                (1) <strong>Belief-trajectory probes in the hint setting</strong> - apply the design of
+                (1) <strong>Belief-trajectory probes in the cue setting</strong> - apply the design of
                 <a href="https://arxiv.org/abs/2603.05488" target="_blank">Boppana et al. (2026)</a> (probe the
                 model's answer commitment at every sentence of the reasoning) to silent vs verbalizing
-                hint-following: does internal commitment to the hinted answer form early while the text discusses
+                cue-following: does internal commitment to the cueed answer form early while the text discusses
                 other things? Per-sentence activations for this are already being collected in the corrected
                 re-extraction.<br>
                 (2) <strong>Matched admissibility test</strong> - the admissibility conclusion currently rests on a
@@ -653,7 +612,7 @@
                 positions in the same task.<br>
                 (3) <strong>Mechanism of the hiring decision-position deficit</strong> - distinguish prefill
                 absorption from attention competition, e.g. by a mid-forward name-swap ablation.<br>
-                (4) <strong>Cross-cue probe generalization</strong> - train a silence probe on professor-hint data
+                (4) <strong>Cross-cue probe generalization</strong> - train a silence probe on professor-cue data
                 and test it on hiring demographics: does one "using information I am not admitting to" direction
                 exist?<br>
                 (5) Combine with Verbalization Fine-Tuning (<a href="https://arxiv.org/abs/2506.22777" target="_blank">Turpin et al., 2025</a>) -
