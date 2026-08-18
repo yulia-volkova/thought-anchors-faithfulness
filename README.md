@@ -21,4 +21,4 @@ A replication/extension of the Thought Anchors framework
 - `webapp/` - the results website
 
 Run scripts from the repo root (shared modules `anchors_utils.py`, `hf_utils.py`,
-`select_mixed_problems.py` live here). Full write-up: `WRITEUP.md`.
+`select_mixed_problems.py` live here).
