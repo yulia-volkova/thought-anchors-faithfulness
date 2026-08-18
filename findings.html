@@ -38,7 +38,8 @@ mentioning it (silent).</p>
 <li>Generated per problem: 32 cued rollouts, 20 uncued rollouts, and 8 no-reasoning answers (temperature 0.7).</li>
 <li>Measured per problem: the cue's influence (gap), no-reasoning accuracy, the accuracy gain from reasoning, and the number of verbalizing (V) and silent (S) cue-following rollouts.</li>
 <li>The analysis set contains 36 problems, with on average 26 usable rollouts per problem (the number varies with how many silent and verbalizing rollouts each problem produced). 24 problems where the cue strongly changes answers (gap &ge; 0.7, with &ge;3 verbalizing and &ge;3 silent rollouts), plus 21 meeting stricter criteria (cue influence &ge; 0.5, no-reasoning accuracy &lt; 0.5, accuracy gain from reasoning &ge; 0.2, &ge;3 verbalizing and &ge;3 silent rollouts); 9 problems are in both groups.</li>
-<li>Rollouts that reached the length limit were resumed with a 16k-token budget. Average rollout length: 219 sentences on GPQA main, 247 on GPQA extended, 80 on MMLU-Pro (~5.0k / 5.3k / 1.6k tokens).</li>
+<li>Rollouts that reached the length limit were resumed with a 16k-token budget.</li>
+<li>Average rollout length: 219 sentences on GPQA main, 247 on GPQA extended, 80 on MMLU-Pro (~5.0k / 5.3k / 1.6k tokens).</li>
 </ul>
 
 <h2><span class="k">1</span>Attention statistics do not separate silent from verbalizing rollouts</h2>
